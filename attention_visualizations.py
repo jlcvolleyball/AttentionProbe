@@ -56,10 +56,10 @@ num_heads_per_layer = cur_layer_attentions.shape[1]
 total_num_layers = config.num_layers
 fig, axs = None, None
 cb1, cb2, cb3 = None, None, None
-tooltip = None  #setup tooltip
+tooltips = {}  #setup tooltip
 
 def plot_attention_head(head_idx):
-    global fig, axs, cur_layer_attentions, cb1, cb2, cb3
+    global fig, axs, cur_layer_attentions, cb1, cb2, cb3, tooltips
     cur_layer_attentions = outputs.encoder_attentions[cur_layer_idx]
     if cb1 is not None: cb1.remove()
     if cb2 is not None: cb2.remove()
@@ -111,10 +111,26 @@ def plot_attention_head(head_idx):
     ax3.set_title("Difference")
     cb3 = fig.colorbar(im_diff, ax=ax3, shrink=0.6)
 
+    #initialize tooltip
+    for ax in axs:
+        annotation = ax.annotate(
+            "", xy=(0, 0), xytext=(-40, 10), textcoords="offset points",
+            bbox=dict(boxstyle="round", fc="w"),
+            arrowprops=dict(arrowstyle="->", color="white")
+        )
+        annotation.set_visible(False)
+        tooltips[ax] = annotation
+
     fig.canvas.draw_idle()
 
 def on_hover(event):
-    global tooltip
+    if event.inaxes is None:
+        for tooltip in tooltips.values():
+            if tooltip.get_visible():
+                tooltip.set_visible(False)
+        fig.canvas.draw_idle()
+        return
+
     hovered_ax = event.inaxes
     if hovered_ax not in axs: return #if it's not on the plot don't do anything
     x_pos = int(np.floor(event.xdata))
@@ -136,22 +152,21 @@ def on_hover(event):
         tokens_x = tokens3
         tokens_y = tokens3
 
+    tooltip = tooltips[hovered_ax]
+
     if 0 <= x_pos < attentions.shape[1] and 0 <= y_pos < attentions.shape[0]: #shape[0] is num rows, shape[1] is num cols
-        if tooltip is not None:
-            tooltip.remove()
-        tooltip = hovered_ax.annotate(
-            "", xy=(x_pos, y_pos), xytext=(-20, 10), textcoords="offset points",
-            bbox=dict(boxstyle="round", fc="w"),
-            arrowprops=dict(arrowstyle="->")
-        )
-        tooltip.set_zorder(1000)
         tooltip.xy = (x_pos, y_pos)
         tooltip.set_text(f"input: {tokens_y[y_pos]}\noutput: {tokens_x[x_pos]}")
         tooltip.set_visible(True)
         fig.canvas.draw_idle()
-    elif tooltip is not None and tooltip.get_visible():
+    else:
         tooltip.set_visible(False)
-        fig.canvas.draw_idle()
+
+    for ax, other_tooltip in tooltips.items():
+        if ax!=hovered_ax and other_tooltip.get_visible():
+            other_tooltip.set_visible(False)
+
+    fig.canvas.draw_idle()
 
 
 def next_attention_head(event):
