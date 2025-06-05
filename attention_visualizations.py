@@ -10,6 +10,14 @@ model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-large")
 config = T5Config.from_pretrained("google/flan-t5-large")
 # model.eval()
 
+def find_difference(t1, t2):
+    word_diff = -1
+    pointer = 0
+    while(pointer < len(t1)):
+        if t1[pointer] != t2[pointer]: word_diff = pointer
+        pointer+=1
+    return word_diff
+
 # input and tokenizing
 # "The man gave the woman his jacket. Who owned the jacket, the man or the woman?"
 input_text1 = "The man showed the woman his jacket. Who owned the jacket, the man or the woman?"
@@ -19,9 +27,15 @@ inputs = tokenizer([input_text1, input_text2],
                    return_tensors="pt",
                    return_attention_mask=True)
 inputs_ids = inputs.input_ids
-print(inputs_ids[0])
 tokens1 = tokenizer.convert_ids_to_tokens(inputs_ids[0])
 tokens2 = tokenizer.convert_ids_to_tokens(inputs_ids[1])
+print(tokens1)
+
+# REQ: tokens1 and tokens2 differ by one word, and are the same length.
+diff_idx = find_difference(tokens1, tokens2)
+diff_t1 = tokens1[diff_idx]
+diff_t2 = tokens2[diff_idx]
+tokens3 = [tokens1[i] if i!=diff_idx else diff_t1 + "/" + diff_t2 for i in range(len(tokens1))]
 
 print(tokens1)
 print(tokens2)
@@ -42,6 +56,7 @@ num_heads_per_layer = cur_layer_attentions.shape[1]
 total_num_layers = config.num_layers
 fig, axs = None, None
 cb1, cb2, cb3 = None, None, None
+tooltip = None  #setup tooltip
 
 def plot_attention_head(head_idx):
     global fig, axs, cur_layer_attentions, cb1, cb2, cb3
@@ -87,17 +102,57 @@ def plot_attention_head(head_idx):
     cb2 = fig.colorbar(im2, ax=ax2, shrink=0.6)
 
     #compute the difference of these attentions
-    max_sentence_len = max(len(tokens1), len(tokens2))
     diff = a1 - a2
     im_diff = ax3.imshow(diff)
-    ax3.set_xticks(np.arange(len(tokens1)))
-    ax3.set_yticks(np.arange(len(tokens2)))
-    ax3.set_xticklabels(tokens1, rotation=90)
-    ax3.set_yticklabels(tokens2)
+    ax3.set_xticks(np.arange(len(tokens3)))
+    ax3.set_yticks(np.arange(len(tokens3)))
+    ax3.set_xticklabels(tokens3, rotation=90)
+    ax3.set_yticklabels(tokens3)
     ax3.set_title("Difference")
     cb3 = fig.colorbar(im_diff, ax=ax3, shrink=0.6)
 
     fig.canvas.draw_idle()
+
+def on_hover(event):
+    global tooltip
+    hovered_ax = event.inaxes
+    if hovered_ax not in axs: return #if it's not on the plot don't do anything
+    x_pos = int(np.floor(event.xdata))
+    y_pos = int(np.floor(event.ydata))
+
+    attentions = None
+    tokens_x = None
+    tokens_y = None
+    if(hovered_ax == axs[0]):
+        attentions = cur_layer_attentions[0, cur_head_idx, :, :].numpy()
+        tokens_x = tokens1
+        tokens_y = tokens1
+    elif(hovered_ax == axs[1]):
+        attentions = cur_layer_attentions[1, cur_head_idx, :, :].numpy()
+        tokens_x = tokens2
+        tokens_y = tokens2
+    else: #must be hovering over the third axis
+        attentions = cur_layer_attentions[0, cur_head_idx, :, :].numpy() - cur_layer_attentions[1, cur_head_idx, :, :].numpy()
+        tokens_x = tokens3
+        tokens_y = tokens3
+
+    if 0 <= x_pos < attentions.shape[1] and 0 <= y_pos < attentions.shape[0]: #shape[0] is num rows, shape[1] is num cols
+        if tooltip is not None:
+            tooltip.remove()
+        tooltip = hovered_ax.annotate(
+            "", xy=(x_pos, y_pos), xytext=(-20, 10), textcoords="offset points",
+            bbox=dict(boxstyle="round", fc="w"),
+            arrowprops=dict(arrowstyle="->")
+        )
+        tooltip.set_zorder(1000)
+        tooltip.xy = (x_pos, y_pos)
+        tooltip.set_text(f"input: {tokens_y[y_pos]}\noutput: {tokens_x[x_pos]}")
+        tooltip.set_visible(True)
+        fig.canvas.draw_idle()
+    elif tooltip is not None and tooltip.get_visible():
+        tooltip.set_visible(False)
+        fig.canvas.draw_idle()
+
 
 def next_attention_head(event):
     global cur_head_idx
@@ -128,6 +183,7 @@ def main():
     # Initial plot
     plot_attention_head(cur_head_idx)
     fig.canvas.mpl_connect('key_press_event', next_attention_head)
+    fig.canvas.mpl_connect('motion_notify_event', on_hover)
     plt.show()
 
 if __name__ == '__main__':
