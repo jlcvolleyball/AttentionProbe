@@ -5,15 +5,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # model setup
-tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-base")
-model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-base")
-config = T5Config.from_pretrained("google/flan-t5-base")
+tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-large")
+model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-large")
+config = T5Config.from_pretrained("google/flan-t5-large")
 # model.eval()
 
 # input and tokenizing
 # "The man gave the woman his jacket. Who owned the jacket, the man or the woman?"
-input_text1 = "The man gave the woman his jacket. Who owned the jacket, the man or the woman?"
-input_text2 = "The man gave the woman her jacket. Who owned the jacket, the man or the woman?"
+input_text1 = "The man showed the woman his jacket. Who owned the jacket, the man or the woman?"
+input_text2 = "The man showed the woman her jacket. Who owned the jacket, the man or the woman?"
 inputs = tokenizer([input_text1, input_text2],
                    padding=True,
                    return_tensors="pt",
@@ -39,13 +39,18 @@ cur_layer_idx = 0
 cur_head_idx = 0
 cur_layer_attentions = outputs.encoder_attentions[cur_layer_idx]
 num_heads_per_layer = cur_layer_attentions.shape[1]
+total_num_layers = config.num_layers
 fig, axs = None, None
+cb1, cb2, cb3 = None, None, None
 
 def plot_attention_head(head_idx):
-    global fig, axs, cur_layer_attentions
+    global fig, axs, cur_layer_attentions, cb1, cb2, cb3
     cur_layer_attentions = outputs.encoder_attentions[cur_layer_idx]
+    if cb1 is not None: cb1.remove()
+    if cb2 is not None: cb2.remove()
+    if cb3 is not None: cb3.remove()
     if fig is None or axs is None:
-        fig, axs = plt.subplots(1, 3, figsize=(20, 6))
+        fig, axs = plt.subplots(1, 3, figsize=(30, 6))
     fig.suptitle(f"Layer {cur_layer_idx} - Head {head_idx}", fontsize=16)
 
     # clear each axis
@@ -65,6 +70,9 @@ def plot_attention_head(head_idx):
     ax1.set_yticklabels(tokens1)
     im1 = ax1.imshow(a1)
     ax1.set_title("Sentence 1 Attention")
+    cb1 = fig.colorbar(im1, ax=ax1, shrink=0.6)
+    # cb1.clim(0.2, 0.8)
+    #plt.clim([-0.05,.08])
 
     #extract attention for sentence 2
     cur_head2 = cur_layer_attentions[1, cur_head_idx, :, :]
@@ -76,6 +84,7 @@ def plot_attention_head(head_idx):
     ax2.set_xticklabels(tokens2, rotation=90)
     ax2.set_yticklabels(tokens2)
     ax2.set_title("Sentence 2 Attention")
+    cb2 = fig.colorbar(im2, ax=ax2, shrink=0.6)
 
     #compute the difference of these attentions
     max_sentence_len = max(len(tokens1), len(tokens2))
@@ -86,17 +95,15 @@ def plot_attention_head(head_idx):
     ax3.set_xticklabels(tokens1, rotation=90)
     ax3.set_yticklabels(tokens2)
     ax3.set_title("Difference")
+    cb3 = fig.colorbar(im_diff, ax=ax3, shrink=0.6)
 
     fig.canvas.draw_idle()
-
-    # plt.tight_layout()
-    # return fig
 
 def next_attention_head(event):
     global cur_head_idx
     global cur_layer_idx
     if event.key == 'right':
-        if cur_layer_idx == 11 and cur_head_idx == 11:
+        if cur_layer_idx == total_num_layers-1 and cur_head_idx == num_heads_per_layer-1:
             cur_layer_idx = 0
             cur_head_idx = 0
         elif cur_head_idx == num_heads_per_layer - 1:
@@ -106,8 +113,8 @@ def next_attention_head(event):
             cur_head_idx += 1
     elif event.key == 'left':
         if cur_layer_idx == 0 and cur_head_idx == 0:
-            cur_layer_idx = 11
-            cur_head_idx = 11
+            cur_layer_idx = total_num_layers - 1
+            cur_head_idx = num_heads_per_layer - 1
         elif cur_head_idx == 0:
             cur_head_idx = num_heads_per_layer-1
             cur_layer_idx -= 1
