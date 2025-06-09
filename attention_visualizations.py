@@ -58,6 +58,18 @@ fig, axs = None, None
 cb1, cb2, cb3 = None, None, None
 tooltips = {}  #setup tooltip
 
+def text_colorchange(ax):
+    y_labels = ax.get_yticklabels()
+    if diff_idx < len(y_labels):
+        y_labels[diff_idx].set_color('red')
+        y_labels[diff_idx].set_fontweight('bold')
+    x_labels = ax.get_xticklabels()
+    if diff_idx < len(x_labels):
+        x_labels[diff_idx].set_color('red')
+        x_labels[diff_idx].set_fontweight('bold')
+    ax.figure.canvas.draw()
+
+
 def plot_attention_head(head_idx):
     global fig, axs, cur_layer_attentions, cb1, cb2, cb3, tooltips
     cur_layer_attentions = outputs.encoder_attentions[cur_layer_idx]
@@ -65,7 +77,12 @@ def plot_attention_head(head_idx):
     if cb2 is not None: cb2.remove()
     if cb3 is not None: cb3.remove()
     if fig is None or axs is None:
-        fig, axs = plt.subplots(1, 3, figsize=(30, 6))
+        fig, axs = plt.subplots(1, 3, figsize=(50, 8))
+    fig.subplots_adjust(
+        left=0.05, right=0.95,
+        top=0.9, bottom=0.1,
+        wspace=0.3
+    )
     fig.suptitle(f"Layer {cur_layer_idx} - Head {head_idx}", fontsize=16)
 
     # clear each axis
@@ -85,7 +102,8 @@ def plot_attention_head(head_idx):
     ax1.set_yticklabels(tokens1)
     im1 = ax1.imshow(a1)
     ax1.set_title("Sentence 1 Attention")
-    cb1 = fig.colorbar(im1, ax=ax1, shrink=0.6)
+    # cb1 = fig.colorbar(im1, ax=ax1, orientation='horizontal', shrink=0.6)
+    cb1 = fig.colorbar(im1, ax=ax1, shrink=0.4, pad=0.1)
     # cb1.clim(0.2, 0.8)
     #plt.clim([-0.05,.08])
 
@@ -99,7 +117,8 @@ def plot_attention_head(head_idx):
     ax2.set_xticklabels(tokens2, rotation=90)
     ax2.set_yticklabels(tokens2)
     ax2.set_title("Sentence 2 Attention")
-    cb2 = fig.colorbar(im2, ax=ax2, shrink=0.6)
+    # cb2 = fig.colorbar(im2, ax=ax2, orientation='horizontal', location='top', pad=0.1)
+    cb2 = fig.colorbar(im2, ax=ax2, shrink=0.4, pad=0.1)
 
     #compute the difference of these attentions
     diff = a1 - a2
@@ -109,17 +128,25 @@ def plot_attention_head(head_idx):
     ax3.set_xticklabels(tokens3, rotation=90)
     ax3.set_yticklabels(tokens3)
     ax3.set_title("Difference")
-    cb3 = fig.colorbar(im_diff, ax=ax3, shrink=0.6)
+    # cb3 = fig.colorbar(im_diff, ax=ax3, orientation='horizontal', shrink=0.6)
+    cb3 = fig.colorbar(im_diff, ax=ax3, shrink=0.4, pad=0.1)
 
     #initialize tooltip
     for ax in axs:
         annotation = ax.annotate(
-            "", xy=(0, 0), xytext=(-40, 10), textcoords="offset points",
+            "", xy=(0, 0), xytext=(-60, 10), textcoords="offset points",
             bbox=dict(boxstyle="round", fc="w"),
-            arrowprops=dict(arrowstyle="->", color="white")
+            arrowprops=dict(arrowstyle="->", color="white"),
+            zorder=100
         )
+        ax.title.set_zorder(1)
+        annotation.set_zorder(100)
         annotation.set_visible(False)
         tooltips[ax] = annotation
+
+    text_colorchange(ax1)
+    text_colorchange(ax2)
+    text_colorchange(ax3)
 
     fig.canvas.draw_idle()
 
@@ -155,8 +182,9 @@ def on_hover(event):
     tooltip = tooltips[hovered_ax]
 
     if 0 <= x_pos < attentions.shape[1] and 0 <= y_pos < attentions.shape[0]: #shape[0] is num rows, shape[1] is num cols
+        cur_attention = attentions[y_pos, x_pos]
         tooltip.xy = (x_pos, y_pos)
-        tooltip.set_text(f"input: {tokens_y[y_pos]}\noutput: {tokens_x[x_pos]}")
+        tooltip.set_text(f"input: {tokens_y[y_pos]}\noutput: {tokens_x[x_pos]}\nactivation: {cur_attention:.3f}")
         tooltip.set_visible(True)
         fig.canvas.draw_idle()
     else:

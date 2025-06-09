@@ -78,16 +78,6 @@ attns_interesting_indices = [
     [(5, 1), (5, 4)],
 ]
 
-def add_highlights(ax, matrix_shape):
-    if highlight_indices:
-        for row, col in highlight_indices:
-            # Check if indices are within bounds
-            if row < matrix_shape[0] and col < matrix_shape[1]:
-                rect = Rectangle((col - 0.5, row - 0.5), 1, 1,
-                                 fill=False, edgecolor='red',
-                                 linewidth=2, linestyle='--')
-                ax.add_patch(rect)
-
 def text_colorchange(ax):
     y_labels = ax.get_yticklabels()
     if diff_idx < len(y_labels):
@@ -107,6 +97,11 @@ def plot_attention_head(head_idx):
     if cb3 is not None: cb3.remove()
     if fig is None or axs is None:
         fig, axs = plt.subplots(1, 3, figsize=(30, 6))
+    fig.subplots_adjust(
+        left=0.05, right=0.95,
+        top=0.9, bottom=0.1,
+        wspace=0.3
+    )
     fig.suptitle(f"Layer {cur_layer_idx} - Head {head_idx}", fontsize=16)
 
     # clear each axis
@@ -126,7 +121,7 @@ def plot_attention_head(head_idx):
     ax1.set_yticklabels(tokens1)
     im1 = ax1.imshow(a1)
     ax1.set_title("Sentence 1 Attention")
-    cb1 = fig.colorbar(im1, ax=ax1, shrink=0.6)
+    cb1 = fig.colorbar(im1, ax=ax1, shrink=0.6, pad=0.1)
     # cb1.clim(0.2, 0.8)
     #plt.clim([-0.05,.08])
 
@@ -140,7 +135,7 @@ def plot_attention_head(head_idx):
     ax2.set_xticklabels(tokens2, rotation=90)
     ax2.set_yticklabels(tokens2)
     ax2.set_title("Sentence 2 Attention")
-    cb2 = fig.colorbar(im2, ax=ax2, shrink=0.6)
+    cb2 = fig.colorbar(im2, ax=ax2, shrink=0.6, pad=0.1)
 
     #compute the difference of these attentions
     diff = a1 - a2
@@ -150,21 +145,20 @@ def plot_attention_head(head_idx):
     ax3.set_xticklabels(tokens3, rotation=90)
     ax3.set_yticklabels(tokens3)
     ax3.set_title("Difference")
-    cb3 = fig.colorbar(im_diff, ax=ax3, shrink=0.6)
+    cb3 = fig.colorbar(im_diff, ax=ax3, shrink=0.6, pad=0.1)
 
     #initialize tooltip
     for ax in axs:
         annotation = ax.annotate(
             "", xy=(0, 0), xytext=(-60, 10), textcoords="offset points",
             bbox=dict(boxstyle="round", fc="w"),
-            arrowprops=dict(arrowstyle="->", color="white")
+            arrowprops=dict(arrowstyle="->", color="white"),
+            zorder=100
         )
+        ax.title.set_zorder(1)
+        annotation.set_zorder(100)
         annotation.set_visible(False)
         tooltips[ax] = annotation
-
-    # add_highlights(ax1, a1.shape)
-    # add_highlights(ax2, a2.shape)
-    # add_highlights(ax3, diff.shape)
 
     text_colorchange(ax1)
     text_colorchange(ax2)
@@ -204,8 +198,9 @@ def on_hover(event):
     tooltip = tooltips[hovered_ax]
 
     if 0 <= x_pos < attentions.shape[1] and 0 <= y_pos < attentions.shape[0]: #shape[0] is num rows, shape[1] is num cols
+        cur_attention = attentions[y_pos, x_pos]
         tooltip.xy = (x_pos, y_pos)
-        tooltip.set_text(f"input: {tokens_y[y_pos]}\noutput: {tokens_x[x_pos]}")
+        tooltip.set_text(f"input: {tokens_y[y_pos]}\noutput: {tokens_x[x_pos]}\nactivation: {cur_attention:.3f}")
         tooltip.set_visible(True)
         fig.canvas.draw_idle()
     else:
