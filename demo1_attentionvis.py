@@ -3,7 +3,7 @@ import torch
 import sys
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.patches import Rectangle
+from matplotlib.widgets import Slider
 
 device = torch.device("cpu")
 
@@ -60,6 +60,9 @@ fig, axs = None, None
 cb1, cb2, cb3 = None, None, None
 tooltips = {}  #setup tooltip
 highlight_indices = None
+range_slider_ax, range_slider = None, None
+im1, im2, im_diff = None, None, None
+original_range_im1, original_range_im2, original_range_imdiff = None, None, None
 
 # list of attention heads of interest, (layer, head number)
 interesting_attns = [
@@ -71,22 +74,27 @@ interesting_attns = [
     (3, 9)
 ]
 
-# array of interesting attention heads and their important indices to highlight
-# order corresponds to the order in which they appear in interesting_attns
-attns_interesting_indices = [
-    [(5, 1), (5, 4)],
-    [(5, 1), (5, 4)],
-]
 
-def add_highlights(ax, matrix_shape):
-    if highlight_indices:
-        for row, col in highlight_indices:
-            # Check if indices are within bounds
-            if row < matrix_shape[0] and col < matrix_shape[1]:
-                rect = Rectangle((col - 0.5, row - 0.5), 1, 1,
-                                 fill=False, edgecolor='red',
-                                 linewidth=2, linestyle='--')
-                ax.add_patch(rect)
+def compute_new_range(im, percent):
+    cur_min, cur_max = None, None
+    if(im == im1): cur_min, cur_max = original_range_im1
+    elif(im == im2): cur_min, cur_max = original_range_im2
+    else: cur_min, cur_max = original_range_imdiff
+
+    midpoint = (cur_min + cur_max) / 2
+    new_total_range = (cur_max - cur_min) * percent
+    new_min = midpoint - new_total_range/2
+    new_max = midpoint + new_total_range/2
+    im.set_clim(new_min, new_max)
+
+def slider_update(val):
+    global im1, im2, im_diff
+    new_percent = val
+    #compute the new min and max
+    compute_new_range(im1, new_percent)
+    compute_new_range(im2, new_percent)
+    compute_new_range(im_diff, new_percent)
+    fig.canvas.draw_idle()
 
 def text_colorchange(ax):
     y_labels = ax.get_yticklabels()
@@ -100,23 +108,41 @@ def text_colorchange(ax):
     ax.figure.canvas.draw()
 
 def plot_attention_head(head_idx):
-    global fig, axs, cur_layer_attentions, cb1, cb2, cb3, tooltips
+    global fig, axs, cur_layer_attentions, cb1, cb2, cb3, tooltips, im1, im2, im_diff
+    global range_slider_ax, range_slider
+    global original_range_im1, original_range_im2, original_range_imdiff
+
     cur_layer_attentions = outputs.encoder_attentions[cur_layer_idx]
     if cb1 is not None: cb1.remove()
     if cb2 is not None: cb2.remove()
     if cb3 is not None: cb3.remove()
     if fig is None or axs is None:
-        fig, axs = plt.subplots(1, 3, figsize=(30, 6))
+        fig, axs = plt.subplots(2, 3, figsize=(50, 8))
+    fig.subplots_adjust(
+        left=0.075, right=0.925,
+        top=0.9, bottom=0.1,
+        wspace=0.5
+    )
     fig.suptitle(f"Layer {cur_layer_idx} - Head {head_idx}", fontsize=16)
 
-    # clear each axis
-    for ax in axs:
-        ax.clear()
-    ax1 = axs[0]
-    ax2 = axs[1]
-    ax3 = axs[2]
 
-    #extract attention for sentence 1
+    if range_slider is None:
+        range_slider_ax = fig.add_axes([0.1, 0.03, 0.8, 0.03])
+        range_slider = Slider(range_slider_ax, 'Adjust Range', 0.0, 1.0, valinit=1.0)
+        range_slider.on_changed(slider_update)
+
+    # clear each axis
+    for ax in axs.flatten():
+        ax.clear()
+    ax1 = axs[0, 0]  # ax1, 2, 3 are the activations in a "grid" format
+    ax2 = axs[0, 1]
+    ax3 = axs[0, 2]
+    ax4 = axs[1, 0]  # ax4, 5, 6 are the activations in a "line" format
+    ax5 = axs[1, 1]
+    ax6 = axs[1, 2]
+
+    # for matrix visualizations:
+    # extract attention for sentence 1
     cur_head1 = cur_layer_attentions[0, cur_head_idx, :, :]
     attention_tokens1 = cur_layer_attentions.shape[2]
     a1 = cur_head1.numpy().reshape(attention_tokens1, attention_tokens1)
@@ -126,11 +152,10 @@ def plot_attention_head(head_idx):
     ax1.set_yticklabels(tokens1)
     im1 = ax1.imshow(a1)
     ax1.set_title("Sentence 1 Attention")
-    cb1 = fig.colorbar(im1, ax=ax1, shrink=0.6)
-    # cb1.clim(0.2, 0.8)
-    #plt.clim([-0.05,.08])
+    cb1 = fig.colorbar(im1, ax=ax1, shrink=0.8, pad=0.1)
+    original_range_im1 = im1.get_clim()
 
-    #extract attention for sentence 2
+    # extract attention for sentence 2
     cur_head2 = cur_layer_attentions[1, cur_head_idx, :, :]
     attention_tokens2 = cur_layer_attentions.shape[2]
     a2 = cur_head2.numpy().reshape(attention_tokens2, attention_tokens2)
@@ -140,9 +165,10 @@ def plot_attention_head(head_idx):
     ax2.set_xticklabels(tokens2, rotation=90)
     ax2.set_yticklabels(tokens2)
     ax2.set_title("Sentence 2 Attention")
-    cb2 = fig.colorbar(im2, ax=ax2, shrink=0.6)
+    cb2 = fig.colorbar(im2, ax=ax2, shrink=0.8, pad=0.1)
+    original_range_im2 = im2.get_clim()
 
-    #compute the difference of these attentions
+    # compute the difference of these attentions
     diff = a1 - a2
     im_diff = ax3.imshow(diff)
     ax3.set_xticks(np.arange(len(tokens3)))
@@ -150,21 +176,74 @@ def plot_attention_head(head_idx):
     ax3.set_xticklabels(tokens3, rotation=90)
     ax3.set_yticklabels(tokens3)
     ax3.set_title("Difference")
-    cb3 = fig.colorbar(im_diff, ax=ax3, shrink=0.6)
+    cb3 = fig.colorbar(im_diff, ax=ax3, shrink=0.8, pad=0.1)
+    original_range_imdiff = im_diff.get_clim()
+
+    # for line visualizations:
+    for i, token in enumerate(tokens1):
+        y = 1 - i / len(tokens1)
+        ax4.text(-0.01, y, token, ha='right', va='center', fontsize=10, transform=ax4.transAxes)
+        ax4.text(1.01, y, token, ha='left', va='center', fontsize=10, transform=ax4.transAxes)
+    for i in range(len(tokens1)):
+        for j in range(len(tokens1)):
+            cur_attention = a1[i, j]
+            if cur_attention > 0.01:
+                ax4.plot(
+                    [0, 1],
+                    [len(tokens1) - i, len(tokens1) - j],
+                    color='blue',
+                    alpha=cur_attention,
+                    linewidth=1
+                )
+    ax4.axis("off")
+
+    for i, token in enumerate(tokens2):
+        y = 1 - i / len(tokens2)
+        ax5.text(-0.01, y, token, ha='right', va='center', fontsize=10, transform=ax5.transAxes)
+        ax5.text(1.01, y, token, ha='left', va='center', fontsize=10, transform=ax5.transAxes)
+
+    for i in range(len(tokens2)):
+        for j in range(len(tokens2)):
+            cur_attention = a2[i, j]
+            if cur_attention > 0.01:
+                ax5.plot(
+                    [0, 1],
+                    [len(tokens2) - i, len(tokens2) - j],
+                    color='purple',
+                    alpha=cur_attention,
+                    linewidth=1
+                )
+    ax5.axis("off")
+
+    for i, token in enumerate(tokens3):
+        y = 1 - i / len(tokens3)
+        ax6.text(-0.01, y, token, ha='right', va='center', fontsize=10, transform=ax6.transAxes)
+        ax6.text(1.01, y, token, ha='left', va='center', fontsize=10, transform=ax6.transAxes)
+    for i in range(len(tokens3)):
+        for j in range(len(tokens3)):
+            cur_attention = diff[i, j]
+            if cur_attention > 0.01:
+                ax6.plot(
+                    [0, 1],
+                    [len(tokens3) - i, len(tokens3) - j],
+                    color='red',
+                    alpha=cur_attention,
+                    linewidth=1
+                )
+    ax6.axis("off")
 
     #initialize tooltip
-    for ax in axs:
+    for ax in axs.flatten():
         annotation = ax.annotate(
             "", xy=(0, 0), xytext=(-60, 10), textcoords="offset points",
             bbox=dict(boxstyle="round", fc="w"),
-            arrowprops=dict(arrowstyle="->", color="white")
+            arrowprops=dict(arrowstyle="->", color="white"),
+            zorder=100
         )
+        ax.title.set_zorder(1)
+        annotation.set_zorder(100)
         annotation.set_visible(False)
         tooltips[ax] = annotation
-
-    # add_highlights(ax1, a1.shape)
-    # add_highlights(ax2, a2.shape)
-    # add_highlights(ax3, diff.shape)
 
     text_colorchange(ax1)
     text_colorchange(ax2)
@@ -188,24 +267,27 @@ def on_hover(event):
     attentions = None
     tokens_x = None
     tokens_y = None
-    if(hovered_ax == axs[0]):
+    if (hovered_ax == axs[0, 0]):
         attentions = cur_layer_attentions[0, cur_head_idx, :, :].numpy()
         tokens_x = tokens1
         tokens_y = tokens1
-    elif(hovered_ax == axs[1]):
+    elif (hovered_ax == axs[0, 1]):
         attentions = cur_layer_attentions[1, cur_head_idx, :, :].numpy()
         tokens_x = tokens2
         tokens_y = tokens2
-    else: #must be hovering over the third axis
+    elif (hovered_ax == axs[0, 2]):
         attentions = cur_layer_attentions[0, cur_head_idx, :, :].numpy() - cur_layer_attentions[1, cur_head_idx, :, :].numpy()
         tokens_x = tokens3
         tokens_y = tokens3
+    else:
+        return
 
     tooltip = tooltips[hovered_ax]
 
     if 0 <= x_pos < attentions.shape[1] and 0 <= y_pos < attentions.shape[0]: #shape[0] is num rows, shape[1] is num cols
+        cur_attention = attentions[y_pos, x_pos]
         tooltip.xy = (x_pos, y_pos)
-        tooltip.set_text(f"input: {tokens_y[y_pos]}\noutput: {tokens_x[x_pos]}")
+        tooltip.set_text(f"input: {tokens_y[y_pos]}\noutput: {tokens_x[x_pos]}\nactivation: {cur_attention:.3f}")
         tooltip.set_visible(True)
         fig.canvas.draw_idle()
     else:

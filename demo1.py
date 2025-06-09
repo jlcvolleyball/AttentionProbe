@@ -81,7 +81,7 @@ def main():
 
     transition_description()
 
-    args = ["python", "demo1_attentionviz.py", prompt1, prompt2]
+    args = ["python", "demo1_attentionvis.py", prompt1, prompt2]
     subprocess.run(args)
 
 if __name__ == '__main__':
