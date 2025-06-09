@@ -3,12 +3,14 @@ import torch
 import sys
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.patches import Rectangle
+
+device = torch.device("cpu")
 
 # model setup
 tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-large")
-model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-large")
+model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-large").to(device)
 config = T5Config.from_pretrained("google/flan-t5-large")
-# model.eval()
 
 def find_difference(t1, t2):
     word_diff = -1
@@ -20,16 +22,15 @@ def find_difference(t1, t2):
 
 # input and tokenizing
 # "The man gave the woman his jacket. Who owned the jacket, the man or the woman?"
-input_text1 = "The man showed the woman his jacket. Who owned the jacket, the man or the woman?"
-input_text2 = "The man showed the woman her jacket. Who owned the jacket, the man or the woman?"
+input_text1 = sys.argv[1]
+input_text2 = sys.argv[2]
 inputs = tokenizer([input_text1, input_text2],
                    padding=True,
                    return_tensors="pt",
-                   return_attention_mask=True)
+                   return_attention_mask=True).to(device)
 inputs_ids = inputs.input_ids
 tokens1 = tokenizer.convert_ids_to_tokens(inputs_ids[0])
 tokens2 = tokenizer.convert_ids_to_tokens(inputs_ids[1])
-print(tokens1)
 
 # REQ: tokens1 and tokens2 differ by one word, and are the same length.
 diff_idx = find_difference(tokens1, tokens2)
@@ -50,13 +51,53 @@ outputs = model.generate(
 
 #set up global variables
 cur_layer_idx = 0
-cur_head_idx = 0
+cur_head_idx = 15
+cur_overall_idx = 0 #for indexing through interesting_attns
 cur_layer_attentions = outputs.encoder_attentions[cur_layer_idx]
 num_heads_per_layer = cur_layer_attentions.shape[1]
 total_num_layers = config.num_layers
 fig, axs = None, None
 cb1, cb2, cb3 = None, None, None
 tooltips = {}  #setup tooltip
+highlight_indices = None
+
+# list of attention heads of interest, (layer, head number)
+interesting_attns = [
+    (0, 15),
+    (2, 6),
+    (2, 8),
+    (2, 9),
+    (3, 6),
+    (3, 9)
+]
+
+# array of interesting attention heads and their important indices to highlight
+# order corresponds to the order in which they appear in interesting_attns
+attns_interesting_indices = [
+    [(5, 1), (5, 4)],
+    [(5, 1), (5, 4)],
+]
+
+def add_highlights(ax, matrix_shape):
+    if highlight_indices:
+        for row, col in highlight_indices:
+            # Check if indices are within bounds
+            if row < matrix_shape[0] and col < matrix_shape[1]:
+                rect = Rectangle((col - 0.5, row - 0.5), 1, 1,
+                                 fill=False, edgecolor='red',
+                                 linewidth=2, linestyle='--')
+                ax.add_patch(rect)
+
+def text_colorchange(ax):
+    y_labels = ax.get_yticklabels()
+    if diff_idx < len(y_labels):
+        y_labels[diff_idx].set_color('red')
+        y_labels[diff_idx].set_fontweight('bold')
+    x_labels = ax.get_xticklabels()
+    if diff_idx < len(x_labels):
+        x_labels[diff_idx].set_color('red')
+        x_labels[diff_idx].set_fontweight('bold')
+    ax.figure.canvas.draw()
 
 def plot_attention_head(head_idx):
     global fig, axs, cur_layer_attentions, cb1, cb2, cb3, tooltips
@@ -114,12 +155,20 @@ def plot_attention_head(head_idx):
     #initialize tooltip
     for ax in axs:
         annotation = ax.annotate(
-            "", xy=(0, 0), xytext=(-40, 10), textcoords="offset points",
+            "", xy=(0, 0), xytext=(-60, 10), textcoords="offset points",
             bbox=dict(boxstyle="round", fc="w"),
             arrowprops=dict(arrowstyle="->", color="white")
         )
         annotation.set_visible(False)
         tooltips[ax] = annotation
+
+    # add_highlights(ax1, a1.shape)
+    # add_highlights(ax2, a2.shape)
+    # add_highlights(ax3, diff.shape)
+
+    text_colorchange(ax1)
+    text_colorchange(ax2)
+    text_colorchange(ax3)
 
     fig.canvas.draw_idle()
 
@@ -170,32 +219,24 @@ def on_hover(event):
 
 
 def next_attention_head(event):
-    global cur_head_idx
-    global cur_layer_idx
+    global cur_head_idx, cur_layer_idx, cur_overall_idx
     if event.key == 'right':
-        if cur_layer_idx == total_num_layers-1 and cur_head_idx == num_heads_per_layer-1:
-            cur_layer_idx = 0
-            cur_head_idx = 0
-        elif cur_head_idx == num_heads_per_layer - 1:
-            cur_head_idx = 0
-            cur_layer_idx += 1
-        else:
-            cur_head_idx += 1
+        cur_overall_idx += 1
+        if(cur_overall_idx >= len(interesting_attns)):
+            cur_overall_idx = 0
     elif event.key == 'left':
-        if cur_layer_idx == 0 and cur_head_idx == 0:
-            cur_layer_idx = total_num_layers - 1
-            cur_head_idx = num_heads_per_layer - 1
-        elif cur_head_idx == 0:
-            cur_head_idx = num_heads_per_layer-1
-            cur_layer_idx -= 1
-        else:
-            cur_head_idx -= 1
+        cur_overall_idx -= 1
+        if(cur_overall_idx < 0):
+            cur_overall_idx = len(interesting_attns) - 1
     else:
         return
+    cur_layer_idx, cur_head_idx = interesting_attns[cur_overall_idx]
     plot_attention_head(cur_head_idx)
 
 def main():
+    global highlight_indices
     # Initial plot
+    highlight_indices = [(diff_idx, diff_idx)]
     plot_attention_head(cur_head_idx)
     fig.canvas.mpl_connect('key_press_event', next_attention_head)
     fig.canvas.mpl_connect('motion_notify_event', on_hover)

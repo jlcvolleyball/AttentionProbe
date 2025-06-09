@@ -2,9 +2,12 @@ from transformers import T5Tokenizer, T5ForConditionalGeneration
 import sys
 import torch
 import time
+import gc
 
-device = torch.device('cuda' if torch.cuda.is_available() else "cpu")
-print("Is CUDA available?", torch.cuda.is_available())
+if torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
 
 tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-large")
 if len(sys.argv) > 1 and sys.argv[1] == "gpu":
@@ -32,7 +35,6 @@ def main():
     end_time = 0
     print(f'Results for {model.name_or_path}:\n')
     if len(sys.argv) > 1 and sys.argv[1] == "gpu":
-        print("I'm here")
         for input_text in input_list:
             input_ids = tokenizer(input_text, return_tensors="pt").input_ids.to(device)
             start_time = time.time()
@@ -49,6 +51,8 @@ def main():
             output_text = tokenizer.decode(outputs[0][1:-1])
             print(f'{input_text}  ->  {output_text}')
     print(f"Model runtime: {end_time - start_time:.2f} seconds")
+
+    gc.collect()
 
 if __name__ == '__main__':
     main()
