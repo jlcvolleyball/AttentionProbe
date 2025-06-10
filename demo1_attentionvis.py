@@ -182,8 +182,14 @@ def plot_attention_head(head_idx):
     # for line visualizations:
     for i, token in enumerate(tokens1):
         y = 1 - i / len(tokens1)
-        ax4.text(-0.01, y, token, ha='right', va='center', fontsize=10, transform=ax4.transAxes)
-        ax4.text(1.01, y, token, ha='left', va='center', fontsize=10, transform=ax4.transAxes)
+        if i != diff_idx:
+            ax4.text(-0.01, y, token, ha='right', va='center', fontsize=10, transform=ax4.transAxes)
+            ax4.text(1.01, y, token, ha='left', va='center', fontsize=10, transform=ax4.transAxes)
+        else:
+            ax4.text(-0.01, y, token, ha='right', va='center', fontsize=10, color='red', weight='bold',
+                     transform=ax4.transAxes)
+            ax4.text(1.01, y, token, ha='left', va='center', fontsize=10, color='red', weight='bold',
+                     transform=ax4.transAxes)
     for i in range(len(tokens1)):
         for j in range(len(tokens1)):
             cur_attention = a1[i, j]
@@ -199,8 +205,14 @@ def plot_attention_head(head_idx):
 
     for i, token in enumerate(tokens2):
         y = 1 - i / len(tokens2)
-        ax5.text(-0.01, y, token, ha='right', va='center', fontsize=10, transform=ax5.transAxes)
-        ax5.text(1.01, y, token, ha='left', va='center', fontsize=10, transform=ax5.transAxes)
+        if i != diff_idx:
+            ax5.text(-0.01, y, token, ha='right', va='center', fontsize=10, transform=ax5.transAxes)
+            ax5.text(1.01, y, token, ha='left', va='center', fontsize=10, transform=ax5.transAxes)
+        else:
+            ax5.text(-0.01, y, token, ha='right', va='center', fontsize=10, color='red', weight='bold',
+                     transform=ax5.transAxes)
+            ax5.text(1.01, y, token, ha='left', va='center', fontsize=10, color='red', weight='bold',
+                     transform=ax5.transAxes)
 
     for i in range(len(tokens2)):
         for j in range(len(tokens2)):
@@ -217,19 +229,34 @@ def plot_attention_head(head_idx):
 
     for i, token in enumerate(tokens3):
         y = 1 - i / len(tokens3)
-        ax6.text(-0.01, y, token, ha='right', va='center', fontsize=10, transform=ax6.transAxes)
-        ax6.text(1.01, y, token, ha='left', va='center', fontsize=10, transform=ax6.transAxes)
+        if i != diff_idx:
+            ax6.text(-0.01, y, token, ha='right', va='center', fontsize=10, transform=ax6.transAxes)
+            ax6.text(1.01, y, token, ha='left', va='center', fontsize=10, transform=ax6.transAxes)
+        else:
+            ax6.text(-0.01, y, token, ha='right', va='center', fontsize=10, color='red', weight='bold',
+                     transform=ax6.transAxes)
+            ax6.text(1.01, y, token, ha='left', va='center', fontsize=10, color='red', weight='bold',
+                     transform=ax6.transAxes)
     for i in range(len(tokens3)):
         for j in range(len(tokens3)):
             cur_attention = diff[i, j]
-            if cur_attention > 0.01:
-                ax6.plot(
-                    [0, 1],
-                    [len(tokens3) - i, len(tokens3) - j],
-                    color='red',
-                    alpha=cur_attention,
-                    linewidth=1
-                )
+            if abs(cur_attention) > 0.01:
+                if cur_attention < 0:
+                    ax6.plot(
+                        [0, 1],
+                        [len(tokens3) - i, len(tokens3) - j],
+                        color='red',
+                        alpha=abs(cur_attention),
+                        linewidth=1
+                    )
+                else:
+                    ax6.plot(
+                        [0, 1],
+                        [len(tokens3) - i, len(tokens3) - j],
+                        color='green',
+                        alpha=abs(cur_attention),
+                        linewidth=1
+                    )
     ax6.axis("off")
 
     #initialize tooltip
