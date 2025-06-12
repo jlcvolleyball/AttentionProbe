@@ -230,12 +230,12 @@ def plot_attention_head(head_idx):
     for i, token in enumerate(tokens3):
         y = 1 - i / len(tokens3)
         if i != diff_idx:
-            ax6.text(-0.01, y, token, ha='right', va='center', fontsize=10, transform=ax6.transAxes)
-            ax6.text(1.01, y, token, ha='left', va='center', fontsize=10, transform=ax6.transAxes)
+            ax6.text(-0.005, y, token, ha='right', va='center', fontsize=10, transform=ax6.transAxes)
+            ax6.text(1.005, y, token, ha='left', va='center', fontsize=10, transform=ax6.transAxes)
         else:
-            ax6.text(-0.01, y, token, ha='right', va='center', fontsize=10, color='red', weight='bold',
+            ax6.text(-0.005, y, token, ha='right', va='center', fontsize=10, color='red', weight='bold',
                      transform=ax6.transAxes)
-            ax6.text(1.01, y, token, ha='left', va='center', fontsize=10, color='red', weight='bold',
+            ax6.text(1.005, y, token, ha='left', va='center', fontsize=10, color='red', weight='bold',
                      transform=ax6.transAxes)
     for i in range(len(tokens3)):
         for j in range(len(tokens3)):

@@ -21,8 +21,8 @@ def find_difference(t1, t2):
 
 # input and tokenizing
 # "The man gave the woman his jacket. Who owned the jacket, the man or the woman?"
-input_text1 = "Some man gave some woman his jacket. Who owned the jacket, the man or the woman?"
-input_text2 = "Some man gave some woman her jacket. Who owned the jacket, the man or the woman?"
+input_text1 = "The man gave the woman his jacket. Who owned the jacket, the man or the woman?"
+input_text2 = "The man gave the woman her jacket. Who owned the jacket, the man or the woman?"
 inputs = tokenizer([input_text1, input_text2],
                    padding=True,
                    return_tensors="pt",
@@ -345,13 +345,19 @@ def next_attention_head(event):
 
 def parse_args():
     global cur_head_idx, cur_layer_idx
-    print(sys.argv)
     if len(sys.argv) == 2:
         desired_layer = int(sys.argv[1])
+        if desired_layer >= total_num_layers or desired_layer < 0:
+            print("You have entered an invalid layer number. Please try again.")
+            exit()
         cur_layer_idx = desired_layer
     elif len(sys.argv) == 3:
         desired_layer = int(sys.argv[1])
         desired_head = int(sys.argv[2])
+        if desired_layer >= total_num_layers or desired_head >= num_heads_per_layer\
+                or desired_layer < 0 or desired_head < 0:
+            print("You have entered an invalid layer number or an invalid attention head number. Please try again.")
+            exit()
         cur_layer_idx = desired_layer
         cur_head_idx = desired_head
 
