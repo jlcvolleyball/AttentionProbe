@@ -79,10 +79,15 @@ def compute_new_range(im, percent):
     elif(im == im2): cur_min, cur_max = original_range_im2
     else: cur_min, cur_max = original_range_imdiff
 
-    midpoint = (cur_min + cur_max) / 2
-    new_total_range = (cur_max - cur_min) * percent
-    new_min = midpoint - new_total_range/2
-    new_max = midpoint + new_total_range/2
+    new_min, new_max = None, None
+    if abs(cur_min) < abs(cur_max): #we want to keep the min the same, shrink the max
+        new_total_range = (cur_max - cur_min) * percent
+        new_max = cur_min + new_total_range
+        new_min = cur_min
+    else: #we want to keep the max the same, shrink the min
+        new_total_range = (cur_max - cur_min) * percent
+        new_min = cur_max - new_total_range
+        new_max = cur_max
     im.set_clim(new_min, new_max)
 
 def slider_update(val):
@@ -94,6 +99,12 @@ def slider_update(val):
     compute_new_range(im_diff, new_percent)
     fig.canvas.draw_idle()
 
+def init_slider(fig):
+    global range_slider_ax, range_slider
+    range_slider_ax = fig.add_axes([0.1, 0.03, 0.2, 0.03])
+    range_slider = Slider(range_slider_ax, 'Adjust Range', 0.0, 1.0, valinit=1.0)
+    range_slider.poly.set_alpha(0.0)
+    range_slider.on_changed(slider_update)
 
 def plot_attention_head(head_idx):
     global fig, axs, cur_layer_attentions, cb1, cb2, cb3, tooltips, im1, im2, im_diff
@@ -114,9 +125,7 @@ def plot_attention_head(head_idx):
     fig.suptitle(f"Layer {cur_layer_idx} - Head {head_idx}", fontsize=16)
 
     if range_slider is None:
-        range_slider_ax = fig.add_axes([0.1, 0.03, 0.8, 0.03])
-        range_slider = Slider(range_slider_ax, 'Adjust Range', 0.0, 1.0, valinit=1.0)
-        range_slider.on_changed(slider_update)
+        init_slider(fig)
 
     # clear each axis
     for ax in axs.flatten():
@@ -319,6 +328,7 @@ def on_hover(event):
 
 
 def next_attention_head(event):
+    global range_slider
     global cur_head_idx
     global cur_layer_idx
     if event.key == 'right':
@@ -342,6 +352,7 @@ def next_attention_head(event):
     else:
         return
     plot_attention_head(cur_head_idx)
+    range_slider.reset()
 
 def parse_args():
     global cur_head_idx, cur_layer_idx
