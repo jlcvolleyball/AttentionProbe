@@ -9,7 +9,6 @@ from matplotlib.widgets import Slider
 tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-large")
 model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-large")
 config = T5Config.from_pretrained("google/flan-t5-large")
-# model.eval()
 
 def find_difference(t1, t2):
     word_diff = -1
@@ -61,6 +60,8 @@ tooltips = {}  #setup tooltip
 range_slider_ax, range_slider = None, None
 im1, im2, im_diff = None, None, None
 original_range_im1, original_range_im2, original_range_imdiff = None, None, None
+all_lines1, all_lines2, all_lines3 = [], [], []
+hovered_lines = []
 
 def text_colorchange(ax):
     y_labels = ax.get_yticklabels()
@@ -106,6 +107,171 @@ def init_slider(fig):
     range_slider.poly.set_alpha(0.0)
     range_slider.on_changed(slider_update)
 
+def init_tooltip(axs, tooltips):
+    # initialize tooltip
+    for ax in axs.flatten():
+        annotation = ax.annotate(
+            "", xy=(0, 0), xytext=(-60, 10), textcoords="offset points",
+            bbox=dict(boxstyle="round", fc="w"),
+            arrowprops=dict(arrowstyle="->", color="white"),
+            zorder=100
+        )
+        ax.title.set_zorder(1)
+        annotation.set_zorder(100)
+        annotation.set_visible(False)
+        tooltips[ax] = annotation
+
+def draw_line_diff(ax, i, j, attention, spacing):
+    y1 = 1 - (i + 0.6) * spacing
+    y2 = 1 - (j + 0.6) * spacing
+    cur_attention = attention
+    alpha = abs(cur_attention)
+    if cur_attention < 0:
+        return ax.plot(
+            [0, 1],
+            [y1, y2],
+            transform=ax.transAxes,
+            color='red',
+            alpha=alpha,
+            linewidth=1
+        )[0]
+    else:
+        return ax.plot(
+            [0, 1],
+            [y1, y2],
+            color='green',
+            transform=ax.transAxes,
+            alpha=alpha,
+            linewidth=1
+        )[0]
+
+def draw_line_prompts(ax, i, j, attention, spacing, color):
+    y1 = 1 - (i + 0.6) * spacing
+    y2 = 1 - (j + 0.6) * spacing
+    cur_attention = attention
+    alpha = cur_attention
+    return ax.plot(
+                    [0, 1],
+                    [y1, y2],
+                    color=color,
+                    transform=ax.transAxes,
+                    alpha=alpha,
+                    linewidth=1
+                )[0]
+
+def compute_tokenbounds(tokens, spacing):
+    token_bounds = []
+    for i in range(len(tokens)):
+        y_center =  1 - (i + 0.6) * spacing
+        height = spacing * 0.9
+        ymin = y_center - height / 2
+        ymax = y_center + height / 2
+        token_bounds.append((ymin, ymax))
+    return token_bounds
+
+def init_linevisualizations(a1, a2, ax4, ax5, ax6, diff):
+    global all_lines1, all_lines2, all_lines3
+    spacing1 = 1 / len(tokens1)
+    for i, token in enumerate(tokens1):
+        y = 1 - (i + 0.6) * spacing1
+        if i != diff_idx:
+            ax4.text(0, y, token, ha='right', va='center', fontsize=10, transform=ax4.transAxes)
+            ax4.text(1, y, token, ha='left', va='center', fontsize=10, transform=ax4.transAxes)
+        else:
+            ax4.text(0, y, token, ha='right', va='center', fontsize=10, color='red', weight='bold',
+                     transform=ax4.transAxes)
+            ax4.text(1, y, token, ha='left', va='center', fontsize=10, color='red', weight='bold',
+                     transform=ax4.transAxes)
+    for i in range(len(tokens1)):
+        for j in range(len(tokens1)):
+            cur_attention = a1[i, j]
+            if cur_attention > 0.01:
+                line = draw_line_prompts(ax4, i, j, cur_attention, spacing1, 'blue')
+                all_lines1.append(line)
+    ax4.axis("off")
+
+    spacing2 = 1 / len(tokens2)
+    for i, token in enumerate(tokens2):
+        # y = 1 - i / len(tokens2)
+        y = 1 - (i + 0.6) * spacing2
+        if i != diff_idx:
+            ax5.text(0, y, token, ha='right', va='center', fontsize=10, transform=ax5.transAxes)
+            ax5.text(1, y, token, ha='left', va='center', fontsize=10, transform=ax5.transAxes)
+        else:
+            ax5.text(0, y, token, ha='right', va='center', fontsize=10, color='red', weight='bold',
+                     transform=ax5.transAxes)
+            ax5.text(1, y, token, ha='left', va='center', fontsize=10, color='red', weight='bold',
+                     transform=ax5.transAxes)
+    for i in range(len(tokens2)):
+        for j in range(len(tokens2)):
+            cur_attention = a2[i, j]
+            if cur_attention > 0.01:
+                line = draw_line_prompts(ax5, i, j, cur_attention, spacing2, 'purple')
+                all_lines2.append(line)
+    ax5.axis("off")
+
+    spacing3 = 1 / len(tokens3)
+    for i, token in enumerate(tokens3):
+        y = 1 - (i + 0.6) * spacing3
+        if i != diff_idx:
+            ax6.text(0, y, token, ha='right', va='center', fontsize=10, transform=ax6.transAxes)
+            ax6.text(1, y, token, ha='left', va='center', fontsize=10, transform=ax6.transAxes)
+        else:
+            ax6.text(0, y, token, ha='right', va='center', fontsize=10, color='red', weight='bold',
+                     transform=ax6.transAxes)
+            ax6.text(1, y, token, ha='left', va='center', fontsize=10, color='red', weight='bold',
+                     transform=ax6.transAxes)
+    for i in range(len(tokens3)):
+        for j in range(len(tokens3)):
+            cur_attention = diff[i, j]
+            if abs(cur_attention) > 0.01:
+                line = draw_line_diff(ax6, i, j, cur_attention, spacing3)
+                all_lines3.append(line)
+    ax6.axis("off")
+
+def init_matrixvisualizations(ax1, ax2, ax3, cur_layer_attentions, fig):
+    global im1, cb1, original_range_im1, im2, cb2, original_range_im2, im_diff, cb3, original_range_imdiff
+    # extract attention for sentence 1
+    cur_head1 = cur_layer_attentions[0, cur_head_idx, :, :]
+    attention_tokens1 = cur_layer_attentions.shape[2]
+    a1 = cur_head1.numpy().reshape(attention_tokens1, attention_tokens1)
+    ax1.set_xticks(np.arange(len(tokens1)))
+    ax1.set_yticks(np.arange(len(tokens1)))
+    ax1.set_xticklabels(tokens1, rotation=90)
+    ax1.set_yticklabels(tokens1)
+    im1 = ax1.imshow(a1)
+    ax1.set_title("Sentence 1 Attention")
+    # cb1 = fig.colorbar(im1, ax=ax1, orientation='horizontal', shrink=0.6)
+    cb1 = fig.colorbar(im1, ax=ax1, shrink=0.8, pad=0.1)
+    original_range_im1 = im1.get_clim()
+    # cb1.clim(0.2, 0.8)
+    # plt.clim([-0.05,.08])
+    # extract attention for sentence 2
+    cur_head2 = cur_layer_attentions[1, cur_head_idx, :, :]
+    attention_tokens2 = cur_layer_attentions.shape[2]
+    a2 = cur_head2.numpy().reshape(attention_tokens2, attention_tokens2)
+    im2 = ax2.imshow(a2)
+    ax2.set_xticks(np.arange(len(tokens2)))
+    ax2.set_yticks(np.arange(len(tokens2)))
+    ax2.set_xticklabels(tokens2, rotation=90)
+    ax2.set_yticklabels(tokens2)
+    ax2.set_title("Sentence 2 Attention")
+    # cb2 = fig.colorbar(im2, ax=ax2, orientation='horizontal', location='top', pad=0.1)
+    cb2 = fig.colorbar(im2, ax=ax2, shrink=0.8, pad=0.1)
+    original_range_im2 = im2.get_clim()
+    # compute the difference of these attentions
+    diff = a1 - a2
+    im_diff = ax3.imshow(diff)
+    ax3.set_xticks(np.arange(len(tokens3)))
+    ax3.set_yticks(np.arange(len(tokens3)))
+    ax3.set_xticklabels(tokens3, rotation=90)
+    ax3.set_yticklabels(tokens3)
+    ax3.set_title("Difference")
+    # cb3 = fig.colorbar(im_diff, ax=ax3, orientation='horizontal', shrink=0.6)
+    cb3 = fig.colorbar(im_diff, ax=ax3, shrink=0.8, pad=0.1)
+    original_range_imdiff = im_diff.get_clim()
+    return a1, a2, diff
+
 def plot_attention_head(head_idx):
     global fig, axs, cur_layer_attentions, cb1, cb2, cb3, tooltips, im1, im2, im_diff
     global range_slider_ax, range_slider
@@ -138,144 +304,102 @@ def plot_attention_head(head_idx):
     ax6 = axs[1, 2]
 
     # for matrix visualizations:
-    # extract attention for sentence 1
-    cur_head1 = cur_layer_attentions[0, cur_head_idx, :, :]
-    attention_tokens1 = cur_layer_attentions.shape[2]
-    a1 = cur_head1.numpy().reshape(attention_tokens1, attention_tokens1)
-    ax1.set_xticks(np.arange(len(tokens1)))
-    ax1.set_yticks(np.arange(len(tokens1)))
-    ax1.set_xticklabels(tokens1, rotation=90)
-    ax1.set_yticklabels(tokens1)
-    im1 = ax1.imshow(a1)
-    ax1.set_title("Sentence 1 Attention")
-    # cb1 = fig.colorbar(im1, ax=ax1, orientation='horizontal', shrink=0.6)
-    cb1 = fig.colorbar(im1, ax=ax1, shrink=0.8, pad=0.1)
-    original_range_im1 = im1.get_clim()
-    # cb1.clim(0.2, 0.8)
-    #plt.clim([-0.05,.08])
-
-    # extract attention for sentence 2
-    cur_head2 = cur_layer_attentions[1, cur_head_idx, :, :]
-    attention_tokens2 = cur_layer_attentions.shape[2]
-    a2 = cur_head2.numpy().reshape(attention_tokens2, attention_tokens2)
-    im2 = ax2.imshow(a2)
-    ax2.set_xticks(np.arange(len(tokens2)))
-    ax2.set_yticks(np.arange(len(tokens2)))
-    ax2.set_xticklabels(tokens2, rotation=90)
-    ax2.set_yticklabels(tokens2)
-    ax2.set_title("Sentence 2 Attention")
-    # cb2 = fig.colorbar(im2, ax=ax2, orientation='horizontal', location='top', pad=0.1)
-    cb2 = fig.colorbar(im2, ax=ax2, shrink=0.8, pad=0.1)
-    original_range_im2 = im2.get_clim()
-
-    # compute the difference of these attentions
-    diff = a1 - a2
-    im_diff = ax3.imshow(diff)
-    ax3.set_xticks(np.arange(len(tokens3)))
-    ax3.set_yticks(np.arange(len(tokens3)))
-    ax3.set_xticklabels(tokens3, rotation=90)
-    ax3.set_yticklabels(tokens3)
-    ax3.set_title("Difference")
-    # cb3 = fig.colorbar(im_diff, ax=ax3, orientation='horizontal', shrink=0.6)
-    cb3 = fig.colorbar(im_diff, ax=ax3, shrink=0.8, pad=0.1)
-    original_range_imdiff = im_diff.get_clim()
+    a1, a2, diff = init_matrixvisualizations(ax1, ax2, ax3, cur_layer_attentions, fig)
 
     # for line visualizations:
-    for i, token in enumerate(tokens1):
-        y = 1 - i / len(tokens1)
-        if i != diff_idx:
-            ax4.text(-0.01, y, token, ha='right', va='center', fontsize=10, transform=ax4.transAxes)
-            ax4.text(1.01, y, token, ha='left', va='center', fontsize=10, transform=ax4.transAxes)
-        else:
-            ax4.text(-0.01, y, token, ha='right', va='center', fontsize=10, color='red', weight='bold', transform=ax4.transAxes)
-            ax4.text(1.01, y, token, ha='left', va='center', fontsize=10, color='red', weight='bold', transform=ax4.transAxes)
-    for i in range(len(tokens1)):
-        for j in range(len(tokens1)):
-            cur_attention = a1[i, j]
-            if cur_attention > 0.01:
-                ax4.plot(
-                    [0, 1],
-                    [len(tokens1)-i, len(tokens1)-j],
-                    color='blue',
-                    alpha=cur_attention,
-                    linewidth=1
-                )
-    ax4.axis("off")
+    init_linevisualizations(a1, a2, ax4, ax5, ax6, diff)
 
-
-    for i, token in enumerate(tokens2):
-        y = 1 - i / len(tokens2)
-        if i != diff_idx:
-            ax5.text(-0.01, y, token, ha='right', va='center', fontsize=10, transform=ax5.transAxes)
-            ax5.text(1.01, y, token, ha='left', va='center', fontsize=10, transform=ax5.transAxes)
-        else:
-            ax5.text(-0.01, y, token, ha='right', va='center', fontsize=10, color='red', weight='bold',
-                     transform=ax5.transAxes)
-            ax5.text(1.01, y, token, ha='left', va='center', fontsize=10, color='red', weight='bold',
-                     transform=ax5.transAxes)
-
-    for i in range(len(tokens2)):
-        for j in range(len(tokens2)):
-            cur_attention = a2[i, j]
-            if cur_attention > 0.01:
-                ax5.plot(
-                    [0, 1],
-                    [len(tokens2)-i, len(tokens2)-j],
-                    color='purple',
-                    alpha=cur_attention,
-                    linewidth=1
-                )
-    ax5.axis("off")
-
-    for i, token in enumerate(tokens3):
-        y = 1 - i / len(tokens3)
-        if i != diff_idx:
-            ax6.text(-0.01, y, token, ha='right', va='center', fontsize=10, transform=ax6.transAxes)
-            ax6.text(1.01, y, token, ha='left', va='center', fontsize=10, transform=ax6.transAxes)
-        else:
-            ax6.text(-0.01, y, token, ha='right', va='center', fontsize=10, color='red', weight='bold',
-                     transform=ax6.transAxes)
-            ax6.text(1.01, y, token, ha='left', va='center', fontsize=10, color='red', weight='bold',
-                     transform=ax6.transAxes)
-    for i in range(len(tokens3)):
-        for j in range(len(tokens3)):
-            cur_attention = diff[i, j]
-            if abs(cur_attention) > 0.01:
-                if cur_attention < 0:
-                    ax6.plot(
-                        [0, 1],
-                        [len(tokens3)-i, len(tokens3)-j],
-                        color='red',
-                        alpha=abs(cur_attention),
-                        linewidth=1
-                    )
-                else:
-                    ax6.plot(
-                        [0, 1],
-                        [len(tokens3) - i, len(tokens3) - j],
-                        color='green',
-                        alpha=abs(cur_attention),
-                        linewidth=1
-                    )
-    ax6.axis("off")
-
-    #initialize tooltip
-    for ax in axs.flatten():
-        annotation = ax.annotate(
-            "", xy=(0, 0), xytext=(-60, 10), textcoords="offset points",
-            bbox=dict(boxstyle="round", fc="w"),
-            arrowprops=dict(arrowstyle="->", color="white"),
-            zorder=100
-        )
-        ax.title.set_zorder(1)
-        annotation.set_zorder(100)
-        annotation.set_visible(False)
-        tooltips[ax] = annotation
+    init_tooltip(axs, tooltips)
 
     text_colorchange(ax1)
     text_colorchange(ax2)
     text_colorchange(ax3)
 
+    fig.canvas.draw_idle()
+
+def reset_lines(hovered_lines):
+    for line in all_lines1:
+        line.set_visible(True)
+    for line in all_lines2:
+        line.set_visible(True)
+    for line in all_lines3:
+        line.set_visible(True)
+    for line in hovered_lines:
+        line.remove()
+    hovered_lines.clear()
+    fig.canvas.draw_idle()
+
+def on_unhover(event):
+    global hovered_lines
+    reset_lines(hovered_lines)
+
+def click_linevisualizations(event):
+    global hovered_lines
+    hovered_ax = event.inaxes
+    if hovered_ax not in axs:
+        reset_lines(hovered_lines)
+        return
+    # check if the hovered axes are correct, handle accordingly
+    if hovered_ax == axs[1, 0]:
+        attentions = cur_layer_attentions[0, cur_head_idx, :, :].numpy()
+        tokens = tokens1
+    elif hovered_ax == axs[1, 1]:
+        attentions = cur_layer_attentions[1, cur_head_idx, :, :].numpy()
+        tokens = tokens2
+    elif hovered_ax == axs[1, 2]:
+        attentions = cur_layer_attentions[0, cur_head_idx, :, :].numpy() - cur_layer_attentions[1, cur_head_idx, :, :].numpy()
+        tokens = tokens3
+    else:
+        reset_lines(hovered_lines)
+        return
+
+    token_bounds = compute_tokenbounds(tokens, spacing=1 / len(tokens))
+    x, y = event.x, event.y
+    inv = hovered_ax.transAxes.inverted()
+    x_axes, y_axes = inv.transform((x, y))
+
+    hovered_token = None
+    for i, (ymin, ymax) in enumerate(token_bounds):
+        if ymin <= y_axes <= ymax:
+            hovered_token = i
+            break
+
+    if hovered_token is None: return
+
+    if hovered_ax == axs[1, 0]:
+        for line in all_lines1:
+            line.set_visible(False)
+    elif hovered_ax == axs[1, 1]:
+        for line in all_lines2:
+            line.set_visible(False)
+    elif hovered_ax == axs[1, 2]:
+        for line in all_lines3:
+            line.set_visible(False)
+
+    for line in hovered_lines:
+        line.remove()
+    hovered_lines.clear()
+
+    if x_axes < 0.5:
+        for j in range(len(tokens)):
+            if attentions[hovered_token, j] > 0.01:
+                if hovered_ax == axs[1, 0]:
+                    new_line = draw_line_prompts(hovered_ax, hovered_token, j, attentions[hovered_token, j], spacing=1 / len(tokens), color="blue")
+                elif hovered_ax == axs[1, 1]:
+                    new_line = draw_line_prompts(hovered_ax, hovered_token, j, attentions[hovered_token, j], spacing=1 / len(tokens), color="purple")
+                if hovered_ax == axs[1, 2]:
+                    new_line = draw_line_diff(hovered_ax, hovered_token, j, attentions[hovered_token, j], spacing=1 / len(tokens))
+                hovered_lines.append(new_line)
+    else:
+        for i in range(len(tokens)):
+            if attentions[i, hovered_token] > 0.01:
+                if hovered_ax == axs[1, 0]:
+                    new_line = draw_line_prompts(hovered_ax, i, hovered_token, attentions[i, hovered_token], spacing=1 / len(tokens), color="blue")
+                elif hovered_ax == axs[1, 1]:
+                    new_line = draw_line_prompts(hovered_ax, i, hovered_token, attentions[i, hovered_token], spacing=1 / len(tokens), color="purple")
+                if hovered_ax == axs[1, 2]:
+                    new_line = draw_line_diff(hovered_ax, i, hovered_token, attentions[i, hovered_token], spacing=1 / len(tokens))
+                hovered_lines.append(new_line)
     fig.canvas.draw_idle()
 
 def on_hover(event):
@@ -307,6 +431,7 @@ def on_hover(event):
         tokens_x = tokens3
         tokens_y = tokens3
     else:
+        click_linevisualizations(event)
         return
 
     tooltip = tooltips[hovered_ax]
@@ -378,6 +503,8 @@ def main():
     plot_attention_head(cur_head_idx)
     fig.canvas.mpl_connect('key_press_event', next_attention_head)
     fig.canvas.mpl_connect('motion_notify_event', on_hover)
+    fig.canvas.mpl_connect("axes_leave_event", on_unhover)
+    # fig.canvas.mpl_connect("button_press_event", click_linevisualizations)
     plt.show()
 
 if __name__ == '__main__':
