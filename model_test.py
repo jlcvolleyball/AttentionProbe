@@ -38,7 +38,9 @@ input_list = [
     "A man walked into a room with two cats and a refrigerator. He scratched them. What did the man scratch, the cats or the refrigerator?",
     "A man walked into a room with two cats and a refrigerator. He scratched it. What did the man scratch, the cats or the refrigerator?",
     "A man walked into a room with two cats and a refrigerator. He scratched them. What did the man scratch?",
-    "A man walked into a room with two cats and a refrigerator. He scratched it. What did the man scratch?"
+    "A man walked into a room with two cats and a refrigerator. He scratched it. What did the man scratch?",
+    "John saw the woman with the telescope. Who had the telescope, John or the woman?",
+    "John saw the woman with the briefcase. Who had the briefcase, John or the woman?"
 ]
 
 def main():

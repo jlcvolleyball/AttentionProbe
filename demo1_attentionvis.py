@@ -81,10 +81,15 @@ def compute_new_range(im, percent):
     elif(im == im2): cur_min, cur_max = original_range_im2
     else: cur_min, cur_max = original_range_imdiff
 
-    midpoint = (cur_min + cur_max) / 2
-    new_total_range = (cur_max - cur_min) * percent
-    new_min = midpoint - new_total_range/2
-    new_max = midpoint + new_total_range/2
+    new_min, new_max = None, None
+    if abs(cur_min) < abs(cur_max):  # we want to keep the min the same, shrink the max
+        new_total_range = (cur_max - cur_min) * percent
+        new_max = cur_min + new_total_range
+        new_min = cur_min
+    else:  # we want to keep the max the same, shrink the min
+        new_total_range = (cur_max - cur_min) * percent
+        new_min = cur_max - new_total_range
+        new_max = cur_max
     im.set_clim(new_min, new_max)
 
 def slider_update(val):
@@ -95,6 +100,13 @@ def slider_update(val):
     compute_new_range(im2, new_percent)
     compute_new_range(im_diff, new_percent)
     fig.canvas.draw_idle()
+
+def init_slider(fig):
+    global range_slider_ax, range_slider
+    range_slider_ax = fig.add_axes([0.1, 0.03, 0.2, 0.03])
+    range_slider = Slider(range_slider_ax, 'Adjust Range', 0.0, 1.0, valinit=1.0)
+    range_slider.poly.set_alpha(0.0)
+    range_slider.on_changed(slider_update)
 
 def text_colorchange(ax):
     y_labels = ax.get_yticklabels()
@@ -127,9 +139,7 @@ def plot_attention_head(head_idx):
 
 
     if range_slider is None:
-        range_slider_ax = fig.add_axes([0.1, 0.03, 0.8, 0.03])
-        range_slider = Slider(range_slider_ax, 'Adjust Range', 0.0, 1.0, valinit=1.0)
-        range_slider.on_changed(slider_update)
+        init_slider(fig)
 
     # clear each axis
     for ax in axs.flatten():
@@ -341,6 +351,7 @@ def next_attention_head(event):
         return
     cur_layer_idx, cur_head_idx = interesting_attns[cur_overall_idx]
     plot_attention_head(cur_head_idx)
+    range_slider.reset()
 
 def main():
     global highlight_indices
