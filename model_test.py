@@ -4,13 +4,12 @@ import torch
 import time
 import gc
 
-if torch.backends.mps.is_available():
-    device = torch.device("mps")
-else:
-    device = torch.device("cpu")
-
 tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-large")
 if len(sys.argv) > 1 and sys.argv[1] == "gpu":
+    if torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
     model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-large").to(device)
     print(f"Model is on device: {next(model.parameters()).device}")
 else:
@@ -27,7 +26,21 @@ input_list = [
     "John showed Mary his jacket. Who owned the jacket?",
     "John showed Mary her jacket. Who owned the jacket?",
     "John showed Mary his jacket. Who owned the jacket, and why?",
-    "John showed Mary her jacket. Who owned the jacket, and why?"
+    "John showed Mary her jacket. Who owned the jacket, and why?",
+    "The cat showed the dogs its dinner. Who owned the dinner, the cat or the dogs?",
+    "The cat showed the dogs their dinner. Who owned the dinner, the cat or the dogs?",
+    "The cat showed the dogs its dinner. Who owned the dinner?",
+    "The cat showed the dogs their dinner. Who owned the dinner?",
+    "The man showed the dogs his dinner. Who owned the dinner, the man or the dogs?",
+    "The man showed the dogs their dinner. Who owned the dinner, the man or the dogs?",
+    "The man showed the dogs his dinner. Who owned the dinner?",
+    "The man showed the dogs their dinner. Who owned the dinner?",
+    "A man walked into a room with two cats and a refrigerator. He scratched them. What did the man scratch, the cats or the refrigerator?",
+    "A man walked into a room with two cats and a refrigerator. He scratched it. What did the man scratch, the cats or the refrigerator?",
+    "A man walked into a room with two cats and a refrigerator. He scratched them. What did the man scratch?",
+    "A man walked into a room with two cats and a refrigerator. He scratched it. What did the man scratch?",
+    "John saw the woman with the telescope. Who had the telescope, John or the woman?",
+    "John saw the woman with the briefcase. Who had the briefcase, John or the woman?"
 ]
 
 def main():
