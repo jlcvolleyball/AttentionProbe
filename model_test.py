@@ -35,6 +35,10 @@ input_list = [
     "The man showed the dogs their dinner. Who owned the dinner, the man or the dogs?",
     "The man showed the dogs his dinner. Who owned the dinner?",
     "The man showed the dogs their dinner. Who owned the dinner?",
+    "A man walked into a room with two cats and a refrigerator. He scratched them. What did the man scratch, the cats or the refrigerator?",
+    "A man walked into a room with two cats and a refrigerator. He scratched it. What did the man scratch, the cats or the refrigerator?",
+    "A man walked into a room with two cats and a refrigerator. He scratched them. What did the man scratch?",
+    "A man walked into a room with two cats and a refrigerator. He scratched it. What did the man scratch?"
 ]
 
 def main():
