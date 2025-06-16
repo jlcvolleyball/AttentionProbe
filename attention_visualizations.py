@@ -331,7 +331,8 @@ def reset_lines(hovered_lines):
 
 def on_unhover(event):
     global hovered_lines
-    reset_lines(hovered_lines)
+    if not hovered_lines == []:
+        reset_lines(hovered_lines)
 
 def click_linevisualizations(event):
     global hovered_lines
