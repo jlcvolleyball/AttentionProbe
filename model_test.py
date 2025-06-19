@@ -4,6 +4,8 @@ import torch
 import time
 import gc
 
+cur_mode = "cpu"
+
 tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-large")
 if len(sys.argv) > 1 and sys.argv[1] == "gpu":
     if torch.backends.mps.is_available():
@@ -16,36 +18,28 @@ else:
     model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-large")
     print(f"Model is on device: {next(model.parameters()).device}")
 
-input_list = [
-    "The man showed the woman his jacket. Who owned the jacket?",
-    "The man showed the woman her jacket. Who owned the jacket?",
-    "The man showed the woman his jacket. Who owned the jacket, and why?",
-    "The man showed the woman her jacket. Who owned the jacket, and why?",
-    "The man showed the woman his jacket. Who owned the jacket, the man or the woman?",
-    "The man showed the woman her jacket. Who owned the jacket, the man or the woman?",
-    "John showed Mary his jacket. Who owned the jacket?",
-    "John showed Mary her jacket. Who owned the jacket?",
-    "John showed Mary his jacket. Who owned the jacket, and why?",
-    "John showed Mary her jacket. Who owned the jacket, and why?",
-    "The cat showed the dogs its dinner. Who owned the dinner, the cat or the dogs?",
-    "The cat showed the dogs their dinner. Who owned the dinner, the cat or the dogs?",
-    "The cat showed the dogs its dinner. Who owned the dinner?",
-    "The cat showed the dogs their dinner. Who owned the dinner?",
-    "The man showed the dogs his dinner. Who owned the dinner, the man or the dogs?",
-    "The man showed the dogs their dinner. Who owned the dinner, the man or the dogs?",
-    "The man showed the dogs his dinner. Who owned the dinner?",
-    "The man showed the dogs their dinner. Who owned the dinner?",
-    "A man walked into a room with two cats and a refrigerator. He scratched them. What did the man scratch, the cats or the refrigerator?",
-    "A man walked into a room with two cats and a refrigerator. He scratched it. What did the man scratch, the cats or the refrigerator?",
-    "A man walked into a room with two cats and a refrigerator. He scratched them. What did the man scratch?",
-    "A man walked into a room with two cats and a refrigerator. He scratched it. What did the man scratch?",
-    "John saw the woman with the telescope. Who had the telescope, John or the woman?",
-    "John saw the woman with the briefcase. Who had the briefcase, John or the woman?"
-]
+input_list = []
+
+def gen_input_list(filename):
+    full_filename = "model_test_inputs/" + filename
+    with open(full_filename, "r") as f:
+        for line in f:
+            input_list.append(line.strip())
 
 def main():
+    # initialize time tracking
     start_time = 0
     end_time = 0
+
+    if len(sys.argv) >= 3:
+        if cur_mode == "cpu":
+            start_idx = 1
+        else:
+            start_idx = 2
+        flag = sys.argv[start_idx]
+        if flag == "-f":
+            gen_input_list(sys.argv[start_idx + 1])
+
     print(f'Results for {model.name_or_path}:\n')
     if len(sys.argv) > 1 and sys.argv[1] == "gpu":
         for input_text in input_list:
