@@ -4,6 +4,7 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.widgets import Slider
+from matplotlib.widgets import TextBox
 
 # model setup
 tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-large")
@@ -58,6 +59,7 @@ fig, axs = None, None
 cb1, cb2, cb3 = None, None, None
 tooltips = {}  #setup tooltip
 range_slider_ax, range_slider = None, None
+layer_textbox_ax, layer_textbox, head_textbox_ax, head_textbox = None, None, None, None
 im1, im2, im_diff = None, None, None
 original_range_im1, original_range_im2, original_range_imdiff = None, None, None
 all_lines1, all_lines2, all_lines3 = [], [], []
@@ -106,6 +108,39 @@ def init_slider(fig):
     range_slider = Slider(range_slider_ax, 'Adjust Range', 0.0, 1.0, valinit=1.0)
     range_slider.poly.set_alpha(0.0)
     range_slider.on_changed(slider_update)
+
+def submit_layeridx(text):
+    global cur_head_idx, cur_layer_idx
+    if not text.isdigit():
+        print("Error: You entered an invalid layer number. Program exit")
+        exit(1)
+    cur_layer_idx = int(text)
+    plot_attention_head(cur_head_idx)
+    range_slider.reset()
+    print(f"Layer: {cur_layer_idx} - Head: {cur_head_idx}")
+
+def submit_headidx(text):
+    global cur_head_idx, cur_layer_idx
+    if not text.isdigit():
+        print("Error: You entered an invalid layer number. Program exit")
+        exit(1)
+    cur_head_idx = int(text)
+    plot_attention_head(cur_head_idx)
+    range_slider.reset()
+    print(f"Layer: {cur_layer_idx} - Head: {cur_head_idx}")
+
+def init_text_boxes(fig):
+    global layer_textbox_ax, layer_textbox, head_textbox_ax, head_textbox
+    layer_textbox_ax = fig.add_axes([0.45, 0.925, 0.05, 0.05])
+    head_textbox_ax = fig.add_axes([0.55, 0.925, 0.05, 0.05])
+    layer_textbox = TextBox(layer_textbox_ax, label='Layer ', initial="0")
+    head_textbox = TextBox(head_textbox_ax, label='Head ', initial="0")
+    layer_textbox.on_submit(submit_layeridx)
+    head_textbox.on_submit(submit_headidx)
+    layer_textbox.label.set_fontsize(16)
+    layer_textbox.text_disp.set_fontsize(16)
+    head_textbox.label.set_fontsize(16)
+    head_textbox.text_disp.set_fontsize(16)
 
 def init_tooltip(axs, tooltips):
     # initialize tooltip
@@ -288,10 +323,13 @@ def plot_attention_head(head_idx):
         top=0.9, bottom=0.1,
         wspace=0.5
     )
-    fig.suptitle(f"Layer {cur_layer_idx} - Head {head_idx}", fontsize=16)
+    # fig.suptitle(f"Layer {cur_layer_idx} - Head {head_idx}", fontsize=16)
 
     if range_slider is None:
         init_slider(fig)
+
+    if head_textbox is None and layer_textbox is None:
+        init_text_boxes(fig)
 
     # clear each axis
     for ax in axs.flatten():
@@ -457,6 +495,7 @@ def next_attention_head(event):
     global range_slider
     global cur_head_idx
     global cur_layer_idx
+    global head_textbox, layer_textbox
     if event.key == 'right':
         if cur_layer_idx == total_num_layers-1 and cur_head_idx == num_heads_per_layer-1:
             cur_layer_idx = 0
@@ -479,6 +518,9 @@ def next_attention_head(event):
         return
     plot_attention_head(cur_head_idx)
     range_slider.reset()
+    layer_textbox.set_val(str(cur_layer_idx))
+    head_textbox.set_val(str(cur_head_idx))
+    print(f"Layer: {cur_layer_idx} - Head: {cur_head_idx}")
 
 def parse_args():
     global cur_head_idx, cur_layer_idx
