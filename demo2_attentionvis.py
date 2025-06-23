@@ -4,11 +4,12 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.widgets import Slider
-from matplotlib.widgets import TextBox
+
+device = torch.device("cpu")
 
 # model setup
 tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-large")
-model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-large")
+model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-large").to(device)
 config = T5Config.from_pretrained("google/flan-t5-large")
 
 def find_difference(t1, t2):
@@ -21,16 +22,15 @@ def find_difference(t1, t2):
 
 # input and tokenizing
 # "The man gave the woman his jacket. Who owned the jacket, the man or the woman?"
-input_text1 = "The woman hit the criminal with the stick. Who had the stick?"
-input_text2 = "The woman hit the criminal with the scar. Who had the scar?"
+input_text1 = sys.argv[1]
+input_text2 = sys.argv[2]
 inputs = tokenizer([input_text1, input_text2],
                    padding=True,
                    return_tensors="pt",
-                   return_attention_mask=True)
+                   return_attention_mask=True).to(device)
 inputs_ids = inputs.input_ids
 tokens1 = tokenizer.convert_ids_to_tokens(inputs_ids[0])
 tokens2 = tokenizer.convert_ids_to_tokens(inputs_ids[1])
-print(tokens1)
 
 # REQ: tokens1 and tokens2 differ by one word, and are the same length.
 diff_idx = find_difference(tokens1, tokens2)
@@ -51,30 +51,31 @@ outputs = model.generate(
 
 #set up global variables
 cur_layer_idx = 0
-cur_head_idx = 0
+cur_head_idx = 15
+cur_overall_idx = 0 #for indexing through interesting_attns
 cur_layer_attentions = outputs.encoder_attentions[cur_layer_idx]
 num_heads_per_layer = cur_layer_attentions.shape[1]
 total_num_layers = config.num_layers
 fig, axs = None, None
 cb1, cb2, cb3 = None, None, None
 tooltips = {}  #setup tooltip
+highlight_indices = None
 range_slider_ax, range_slider = None, None
-layer_textbox_ax, layer_textbox, head_textbox_ax, head_textbox = None, None, None, None
 im1, im2, im_diff = None, None, None
 original_range_im1, original_range_im2, original_range_imdiff = None, None, None
 all_lines1, all_lines2, all_lines3 = [], [], []
 hovered_lines = []
 
-def text_colorchange(ax):
-    y_labels = ax.get_yticklabels()
-    if diff_idx < len(y_labels):
-        y_labels[diff_idx].set_color('red')
-        y_labels[diff_idx].set_fontweight('bold')
-    x_labels = ax.get_xticklabels()
-    if diff_idx < len(x_labels):
-        x_labels[diff_idx].set_color('red')
-        x_labels[diff_idx].set_fontweight('bold')
-    ax.figure.canvas.draw()
+# list of attention heads of interest, (layer, head number)
+interesting_attns = [
+    (3, 9),
+    (6, 14),
+    (10, 9),
+    (11, 15),
+    (16, 10),
+    (22, 14)
+]
+
 
 def compute_new_range(im, percent):
     cur_min, cur_max = None, None
@@ -83,11 +84,11 @@ def compute_new_range(im, percent):
     else: cur_min, cur_max = original_range_imdiff
 
     new_min, new_max = None, None
-    if abs(cur_min) < abs(cur_max): #we want to keep the min the same, shrink the max
+    if abs(cur_min) < abs(cur_max):  # we want to keep the min the same, shrink the max
         new_total_range = (cur_max - cur_min) * percent
         new_max = cur_min + new_total_range
         new_min = cur_min
-    else: #we want to keep the max the same, shrink the min
+    else:  # we want to keep the max the same, shrink the min
         new_total_range = (cur_max - cur_min) * percent
         new_min = cur_max - new_total_range
         new_max = cur_max
@@ -109,38 +110,17 @@ def init_slider(fig):
     range_slider.poly.set_alpha(0.0)
     range_slider.on_changed(slider_update)
 
-def submit_layeridx(text):
-    global cur_head_idx, cur_layer_idx
-    if not text.isdigit():
-        print("Error: You entered an invalid layer number. Program exit")
-        exit(1)
-    cur_layer_idx = int(text)
-    plot_attention_head(cur_head_idx)
-    range_slider.reset()
-    print(f"Layer: {cur_layer_idx} - Head: {cur_head_idx}")
+def text_colorchange(ax):
+    y_labels = ax.get_yticklabels()
+    if diff_idx < len(y_labels):
+        y_labels[diff_idx].set_color('red')
+        y_labels[diff_idx].set_fontweight('bold')
+    x_labels = ax.get_xticklabels()
+    if diff_idx < len(x_labels):
+        x_labels[diff_idx].set_color('red')
+        x_labels[diff_idx].set_fontweight('bold')
+    ax.figure.canvas.draw()
 
-def submit_headidx(text):
-    global cur_head_idx, cur_layer_idx
-    if not text.isdigit():
-        print("Error: You entered an invalid layer number. Program exit")
-        exit(1)
-    cur_head_idx = int(text)
-    plot_attention_head(cur_head_idx)
-    range_slider.reset()
-    print(f"Layer: {cur_layer_idx} - Head: {cur_head_idx}")
-
-def init_text_boxes(fig):
-    global layer_textbox_ax, layer_textbox, head_textbox_ax, head_textbox
-    layer_textbox_ax = fig.add_axes([0.45, 0.925, 0.05, 0.05])
-    head_textbox_ax = fig.add_axes([0.55, 0.925, 0.05, 0.05])
-    layer_textbox = TextBox(layer_textbox_ax, label='Layer ', initial="0")
-    head_textbox = TextBox(head_textbox_ax, label='Head ', initial="0")
-    layer_textbox.on_submit(submit_layeridx)
-    head_textbox.on_submit(submit_headidx)
-    layer_textbox.label.set_fontsize(16)
-    layer_textbox.text_disp.set_fontsize(16)
-    head_textbox.label.set_fontsize(16)
-    head_textbox.text_disp.set_fontsize(16)
 
 def init_tooltip(axs, tooltips):
     # initialize tooltip
@@ -323,21 +303,19 @@ def plot_attention_head(head_idx):
         top=0.9, bottom=0.1,
         wspace=0.5
     )
-    # fig.suptitle(f"Layer {cur_layer_idx} - Head {head_idx}", fontsize=16)
+    fig.suptitle(f"Layer {cur_layer_idx} - Head {head_idx}", fontsize=16)
+
 
     if range_slider is None:
         init_slider(fig)
 
-    if head_textbox is None and layer_textbox is None:
-        init_text_boxes(fig)
-
     # clear each axis
     for ax in axs.flatten():
         ax.clear()
-    ax1 = axs[0, 0] # ax1, 2, 3 are the activations in a "grid" format
+    ax1 = axs[0, 0]  # ax1, 2, 3 are the activations in a "grid" format
     ax2 = axs[0, 1]
     ax3 = axs[0, 2]
-    ax4 = axs[1, 0] # ax4, 5, 6 are the activations in a "line" format
+    ax4 = axs[1, 0]  # ax4, 5, 6 are the activations in a "line" format
     ax5 = axs[1, 1]
     ax6 = axs[1, 2]
 
@@ -354,6 +332,7 @@ def plot_attention_head(head_idx):
     text_colorchange(ax3)
 
     fig.canvas.draw_idle()
+
 
 def reset_lines(hovered_lines):
     for line in all_lines1:
@@ -450,18 +429,18 @@ def on_hover(event):
         return
 
     hovered_ax = event.inaxes
-    if hovered_ax not in axs: return
+    if hovered_ax not in axs: return #if it's not on the plot don't do anything
     x_pos = int(np.floor(event.xdata))
     y_pos = int(np.floor(event.ydata))
 
     attentions = None
     tokens_x = None
     tokens_y = None
-    if(hovered_ax == axs[0, 0]):
+    if (hovered_ax == axs[0, 0]):
         attentions = cur_layer_attentions[0, cur_head_idx, :, :].numpy()
         tokens_x = tokens1
         tokens_y = tokens1
-    elif(hovered_ax == axs[0, 1]):
+    elif (hovered_ax == axs[0, 1]):
         attentions = cur_layer_attentions[1, cur_head_idx, :, :].numpy()
         tokens_x = tokens2
         tokens_y = tokens2
@@ -492,57 +471,25 @@ def on_hover(event):
 
 
 def next_attention_head(event):
-    global range_slider
-    global cur_head_idx
-    global cur_layer_idx
-    global head_textbox, layer_textbox
+    global cur_head_idx, cur_layer_idx, cur_overall_idx
     if event.key == 'right':
-        if cur_layer_idx == total_num_layers-1 and cur_head_idx == num_heads_per_layer-1:
-            cur_layer_idx = 0
-            cur_head_idx = 0
-        elif cur_head_idx == num_heads_per_layer - 1:
-            cur_head_idx = 0
-            cur_layer_idx += 1
-        else:
-            cur_head_idx += 1
+        cur_overall_idx += 1
+        if(cur_overall_idx >= len(interesting_attns)):
+            cur_overall_idx = 0
     elif event.key == 'left':
-        if cur_layer_idx == 0 and cur_head_idx == 0:
-            cur_layer_idx = total_num_layers - 1
-            cur_head_idx = num_heads_per_layer - 1
-        elif cur_head_idx == 0:
-            cur_head_idx = num_heads_per_layer-1
-            cur_layer_idx -= 1
-        else:
-            cur_head_idx -= 1
+        cur_overall_idx -= 1
+        if(cur_overall_idx < 0):
+            cur_overall_idx = len(interesting_attns) - 1
     else:
         return
+    cur_layer_idx, cur_head_idx = interesting_attns[cur_overall_idx]
     plot_attention_head(cur_head_idx)
     range_slider.reset()
-    layer_textbox.set_val(str(cur_layer_idx))
-    head_textbox.set_val(str(cur_head_idx))
-    print(f"Layer: {cur_layer_idx} - Head: {cur_head_idx}")
-
-def parse_args():
-    global cur_head_idx, cur_layer_idx
-    if len(sys.argv) == 2:
-        desired_layer = int(sys.argv[1])
-        if desired_layer >= total_num_layers or desired_layer < 0:
-            print("You have entered an invalid layer number. Please try again.")
-            exit()
-        cur_layer_idx = desired_layer
-    elif len(sys.argv) == 3:
-        desired_layer = int(sys.argv[1])
-        desired_head = int(sys.argv[2])
-        if desired_layer >= total_num_layers or desired_head >= num_heads_per_layer\
-                or desired_layer < 0 or desired_head < 0:
-            print("You have entered an invalid layer number or an invalid attention head number. Please try again.")
-            exit()
-        cur_layer_idx = desired_layer
-        cur_head_idx = desired_head
 
 def main():
+    global highlight_indices
     # Initial plot
-    parse_args()
+    highlight_indices = [(diff_idx, diff_idx)]
     plot_attention_head(cur_head_idx)
     fig.canvas.mpl_connect('key_press_event', next_attention_head)
     fig.canvas.mpl_connect('motion_notify_event', on_hover)

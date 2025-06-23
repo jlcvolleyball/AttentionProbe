@@ -1,9 +1,7 @@
 from transformers import T5ForConditionalGeneration, T5Config, T5Tokenizer
 import torch
 import sys
-import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.widgets import Slider
 
 input_text1 = "The woman hit the thief with the stick. Who had the stick?"
 
