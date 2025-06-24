@@ -21,7 +21,7 @@ else:
 input_list = []
 
 def gen_input_list(filename):
-    full_filename = "model_test_inputs/" + filename
+    full_filename = "../model_test_inputs/" + filename
     with open(full_filename, "r") as f:
         for line in f:
             input_list.append(line.strip())
