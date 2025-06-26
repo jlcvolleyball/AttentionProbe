@@ -394,9 +394,10 @@ def click_linevisualizations(event):
         for line in all_lines3:
             line.set_visible(False)
 
-    for line in hovered_lines:
-        line.remove()
-    hovered_lines.clear()
+    if hovered_lines:
+        for line in hovered_lines:
+            line.remove()
+        hovered_lines.clear()
 
     if x_axes < 0.5:
         for j in range(len(tokens)):

@@ -217,7 +217,7 @@ def cosine_sim_lineplot():
 
 def matrix_cosine_sim_visualization():
     all_sims = []
-    cur_token = 0
+    cur_token = 2
     for layer_i in encoder_hidden_states:
         layer_i_embedding = layer_i[0, cur_token, :]
         layer_ij_sims = []

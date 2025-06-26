@@ -21,8 +21,8 @@ def find_difference(t1, t2):
 
 # input and tokenizing
 # "The man gave the woman his jacket. Who owned the jacket, the man or the woman?"
-input_text1 = "The woman hit the criminal with the stick. Who had the stick?"
-input_text2 = "The woman hit the criminal with the scar. Who had the scar?"
+input_text1 = "The animal did not cross the road because it was too tired. What does ‘it’ refer to?"
+input_text2 = "The animal did not cross the road because it was too wide. What does ‘it’ refer to?"
 inputs = tokenizer([input_text1, input_text2],
                    padding=True,
                    return_tensors="pt",
@@ -415,9 +415,10 @@ def click_linevisualizations(event):
         for line in all_lines3:
             line.set_visible(False)
 
-    for line in hovered_lines:
-        line.remove()
-    hovered_lines.clear()
+    if hovered_lines:
+        for line in hovered_lines:
+            line.remove()
+        hovered_lines.clear()
 
     if x_axes < 0.5:
         for j in range(len(tokens)):
