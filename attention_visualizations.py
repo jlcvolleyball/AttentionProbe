@@ -133,8 +133,8 @@ def init_text_boxes(fig):
     global layer_textbox_ax, layer_textbox, head_textbox_ax, head_textbox
     layer_textbox_ax = fig.add_axes([0.45, 0.925, 0.05, 0.05])
     head_textbox_ax = fig.add_axes([0.55, 0.925, 0.05, 0.05])
-    layer_textbox = TextBox(layer_textbox_ax, label='Layer ', initial="0")
-    head_textbox = TextBox(head_textbox_ax, label='Head ', initial="0")
+    layer_textbox = TextBox(layer_textbox_ax, label='Layer ', initial=str(cur_layer_idx))
+    head_textbox = TextBox(head_textbox_ax, label='Head ', initial=str(cur_head_idx))
     layer_textbox.on_submit(submit_layeridx)
     head_textbox.on_submit(submit_headidx)
     layer_textbox.label.set_fontsize(16)
