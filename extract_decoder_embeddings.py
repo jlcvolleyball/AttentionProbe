@@ -27,7 +27,10 @@ min_embedding2_label_ax, min_embedding2_label, max_embedding2_label_ax, max_embe
 max_embedding1, max_embedding2 = -float("inf"), -float("inf")
 min_embedding1, min_embedding2 = float("inf"), float("inf")
 
-my_input = "The jacket"
+# for cosine sim matrix visualization
+ax = None
+
+my_input = "John has a lot of"
 inputs = tokenizer(my_input, return_tensors="pt")
 inputs_ids = inputs.input_ids
 
@@ -37,6 +40,7 @@ outputs = model.generate(
     output_hidden_states=True,
     return_dict_in_generate=True
 )
+output_tokens = tokenizer.convert_ids_to_tokens(outputs[0][0])
 
 tokens1 = tokenizer.convert_ids_to_tokens(inputs_ids[0])
 print(f"These are the input IDS: {inputs_ids[0]}")
@@ -45,8 +49,8 @@ print(f"These are the tokens: {tokens1}")
 encoder_hidden_states = outputs.encoder_hidden_states
 decoder_hidden_states = outputs.decoder_hidden_states
 
-seq_len = encoder_hidden_states[0].shape[1]
-num_layers = len(encoder_hidden_states)
+seq_len = len(decoder_hidden_states)
+num_layers = len(decoder_hidden_states)
 def is_float(s):
     try:
         float(s)
@@ -76,7 +80,7 @@ def submit_emb1_idx(text):
     cur_layer_idx = int(text)
     plot_embedding(0, cur_layer_idx)
 
-def submit_token_num(text):
+def submit_token_num_matrix(text):
     global token_idx
     if not text.isdigit() or int(text) > seq_len-1:
         print("Error: You entered an invalid token number. Program exit")
@@ -133,9 +137,7 @@ def matrix_embedding_visualizations():
     # default token index for now:
     if fig is None and axs is None:
         fig, axs = plt.subplots(1, 2, figsize=(50, 8))
-        axs[0].plot([1, 2, 3], [4, 5, 6])
         axs[0].set_title("Embedding 1 Plot")
-        axs[1].plot([1, 2, 3], [6, 5, 4])
         axs[1].set_title("Embedding 2 Plot")
 
         embedding1_layer_ax = fig.add_axes([0.30, 0.87, 0.05, 0.05])
@@ -153,7 +155,7 @@ def matrix_embedding_visualizations():
         token_num_label = TextBox(token_num_label_ax, label='Token Number ', initial="0")
         token_num_label.label.set_fontsize(16)
         token_num_label.text_disp.set_fontsize(16)
-        token_num_label.on_submit(submit_token_num)
+        token_num_label.on_submit(submit_token_num_matrix)
 
         min_embedding1_label_ax = fig.add_axes([0.20, 0.15, 0.05, 0.05])
         min_embedding1_label = TextBox(min_embedding1_label_ax, label='Min ', initial="0")
@@ -170,14 +172,14 @@ def matrix_embedding_visualizations():
         max_embedding2_label.on_submit(submit_emb2_max)
 
     # updating title
-    fig.suptitle(f"Current Token: {tokens1[token_idx]}", fontsize=16)
+    fig.suptitle(f"Current Token: {output_tokens[token_idx]}", fontsize=16)
 
     # initialize to original embeddings
-    original_embedding1 = encoder_hidden_states[emb1_layer_idx][0, token_idx, :]
+    original_embedding1 = decoder_hidden_states[token_idx][emb1_layer_idx][0, 0, :]
     reshaped_original_embedding1 = original_embedding1.numpy().reshape((32, 32))
     im1 = axs[0].imshow(reshaped_original_embedding1)
     cb1 = fig.colorbar(im1, ax=axs[0], shrink=0.7, pad=0.1)
-    original_embedding2 = encoder_hidden_states[emb2_layer_idx][0, token_idx, :]
+    original_embedding2 = decoder_hidden_states[token_idx][emb2_layer_idx][0, 0, :]
     reshaped_original_embedding2 = original_embedding2.numpy().reshape((32, 32))
     im2 = axs[1].imshow(reshaped_original_embedding2)
     cb2 = fig.colorbar(im2, ax=axs[1], shrink=0.7, pad=0.1)
@@ -195,44 +197,73 @@ def matrix_embedding_visualizations():
 def cosine_sim_lineplot():
     all_sims = []
     for cur_token in range(seq_len):
-        original_embedding = encoder_hidden_states[0][0, cur_token, :]
+        original_embedding = decoder_hidden_states[cur_token][0][0, 0, :]
         cosine_similarities = []
-        for layer in encoder_hidden_states:
-            cur_embedding = layer[0, cur_token, :]
+        for layer in decoder_hidden_states[cur_token]:
+            cur_embedding = layer[0, 0, :]
             # print(f"Current embedding: {cur_embedding}")
             sim = F.cosine_similarity(original_embedding, cur_embedding, dim=0).item()
             cosine_similarities.append(sim)
         all_sims.append(cosine_similarities)
 
-    print(outputs[0][1:-1])
-    output_text = tokenizer.decode(outputs[0][0])
-    print(f"output: {output_text}")
+    # print(outputs[0][1:-1])
+    # output_text = tokenizer.decode(outputs[0][0])
+    # print(f"output: {output_text}")
 
     for idx, cos_sim in enumerate(all_sims):
-        plt.plot(cos_sim, marker='o', label=tokens1[idx])
+        plt.plot(cos_sim, marker='o', label=output_tokens[idx])
     plt.xlabel("Layer")
     plt.ylabel("Cosine similarity to input embedding")
     plt.legend()
     plt.show()
 
+def submit_token_num_cos(text):
+    global token_idx
+    if not text.isdigit() or int(text) > seq_len-1:
+        print("Error: You entered an invalid token number. Program exit")
+        return
+    cur_token_idx = int(text)
+    token_idx = cur_token_idx
+    matrix_cosine_sim_visualization()
+
 def matrix_cosine_sim_visualization():
+    global cb1, fig, ax, token_num_label_ax, token_num_label
+    global token_idx
     all_sims = []
-    cur_token = 2
-    for layer_i in encoder_hidden_states:
-        layer_i_embedding = layer_i[0, cur_token, :]
+
+    if cb1 is not None: cb1.remove()
+
+    if fig is None:
+        fig, ax = plt.subplots(1, 1, figsize=(50, 8))
+
+        token_num_label_ax = fig.add_axes([0.55, 0.03, 0.05, 0.05])
+        token_num_label = TextBox(token_num_label_ax, label='Token Number ', initial="0")
+        token_num_label.label.set_fontsize(16)
+        token_num_label.text_disp.set_fontsize(16)
+        token_num_label.on_submit(submit_token_num_cos)
+
+    # updating title
+    fig.suptitle(f"Current Token: {output_tokens[token_idx]}", fontsize=16)
+
+    for layer_i in decoder_hidden_states[token_idx]:
+        layer_i_embedding = layer_i[0, 0, :]
         layer_ij_sims = []
-        for layer_j in encoder_hidden_states:
-            layer_j_embedding = layer_j[0, cur_token, :]
+        for layer_j in decoder_hidden_states[token_idx]:
+            layer_j_embedding = layer_j[0, 0, :]
             sim = F.cosine_similarity(layer_i_embedding, layer_j_embedding, dim=0).item()
             layer_ij_sims.append(sim)
         all_sims.append(layer_ij_sims)
     all_sims_np = np.array(all_sims)
-    im = plt.imshow(all_sims_np)
-    plt.colorbar()
+    im = ax.imshow(all_sims_np)
+    cb1 = fig.colorbar(im, ax=ax, shrink=0.7, pad=0.1)
+
     plt.show()
 
 def main():
     global mode
+    output_text = tokenizer.decode(outputs[0][0])
+    print(f"output tokens: {outputs[0][0]}")
+    print(f"output text: {output_text}")
     if len(sys.argv) == 3:
         flag = sys.argv[1]
         if flag == "-mode":

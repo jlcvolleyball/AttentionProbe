@@ -14,3 +14,15 @@ The woman hit the criminal with the stick. Who had the stick?
 The woman hit the criminal with the scar. Who had the scar?
 The woman hit the criminal with the slab. Who had the slab?
 The woman hit the criminal with the rod. Who had the rod?
+The woman hit the thief with the stick. What did she hit with?
+The woman hit the thief with the scar. What did she hit with?
+The woman hit the thief without hesitation. What did she hit with?
+The woman hit the thief with some hesitation. What did she hit with?
+The man ate the chicken with broccoli. What did the man eat?
+The man ate the chicken with chopsticks. What did the man eat?
+The man ate chicken with broccoli. What did the man eat?
+The man ate chicken with chopsticks. What did the man eat?
+They discussed the plan for dinner. How long did it take?
+They discussed the plan for hours. How long did it take?
+They discussed the plan for dinner. What was the plan for?
+They discussed the plan for hours. What was the plan for?
