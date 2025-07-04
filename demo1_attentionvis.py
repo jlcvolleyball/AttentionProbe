@@ -49,6 +49,11 @@ outputs = model.generate(
     return_dict_in_generate=True
 )
 
+# get the output of the model
+output1 = tokenizer.decode(outputs[0][0], skip_special_tokens=True)
+output2 = tokenizer.decode(outputs[0][1], skip_special_tokens=True)
+
+
 #set up global variables
 cur_layer_idx = 0
 cur_head_idx = 15
@@ -65,6 +70,7 @@ im1, im2, im_diff = None, None, None
 original_range_im1, original_range_im2, original_range_imdiff = None, None, None
 all_lines1, all_lines2, all_lines3 = [], [], []
 hovered_lines = []
+output_text1_ax, output_text2_ax = None, None
 
 # list of attention heads of interest, (layer, head number)
 interesting_attns = [
@@ -221,7 +227,7 @@ def init_linevisualizations(a1, a2, ax4, ax5, ax6, diff):
         for j in range(len(tokens2)):
             cur_attention = a2[i, j]
             if cur_attention > 0.01:
-                line = draw_line_prompts(ax5, i, j, cur_attention, spacing2, 'purple')
+                line = draw_line_prompts(ax5, i, j, cur_attention, spacing2, 'blue')
                 all_lines2.append(line)
     ax5.axis("off")
 
@@ -291,6 +297,7 @@ def plot_attention_head(head_idx):
     global fig, axs, cur_layer_attentions, cb1, cb2, cb3, tooltips, im1, im2, im_diff
     global range_slider_ax, range_slider
     global original_range_im1, original_range_im2, original_range_imdiff
+    global output_text1_ax, output_text2_ax
 
     cur_layer_attentions = outputs.encoder_attentions[cur_layer_idx]
     if cb1 is not None: cb1.remove()
@@ -298,6 +305,12 @@ def plot_attention_head(head_idx):
     if cb3 is not None: cb3.remove()
     if fig is None or axs is None:
         fig, axs = plt.subplots(2, 3, figsize=(50, 8))
+        output_text1_ax = fig.add_axes([0.05, 0.91, 0.4, 0.1])
+        output_text1_ax.axis("off")
+        output_text1_ax.text(0.0, 0.5, f"Output 1: {output1}", fontsize=12, va="center", ha="left")
+        output_text2_ax = fig.add_axes([0.05, 0.89, 0.4, 0.1])
+        output_text2_ax.axis("off")
+        output_text2_ax.text(0.0, 0.5, f"Output 2: {output2}", fontsize=12, va="center", ha="left")
     fig.subplots_adjust(
         left=0.075, right=0.925,
         top=0.9, bottom=0.1,
@@ -401,21 +414,21 @@ def click_linevisualizations(event):
 
     if x_axes < 0.5:
         for j in range(len(tokens)):
-            if attentions[hovered_token, j] > 0.01:
+            if abs(attentions[hovered_token, j]) > 0.01:
                 if hovered_ax == axs[1, 0]:
                     new_line = draw_line_prompts(hovered_ax, hovered_token, j, attentions[hovered_token, j], spacing=1 / len(tokens), color="blue")
                 elif hovered_ax == axs[1, 1]:
-                    new_line = draw_line_prompts(hovered_ax, hovered_token, j, attentions[hovered_token, j], spacing=1 / len(tokens), color="purple")
+                    new_line = draw_line_prompts(hovered_ax, hovered_token, j, attentions[hovered_token, j], spacing=1 / len(tokens), color="blue")
                 if hovered_ax == axs[1, 2]:
                     new_line = draw_line_diff(hovered_ax, hovered_token, j, attentions[hovered_token, j], spacing=1 / len(tokens))
                 hovered_lines.append(new_line)
     else:
         for i in range(len(tokens)):
-            if attentions[i, hovered_token] > 0.01:
+            if abs(attentions[i, hovered_token]) > 0.01:
                 if hovered_ax == axs[1, 0]:
                     new_line = draw_line_prompts(hovered_ax, i, hovered_token, attentions[i, hovered_token], spacing=1 / len(tokens), color="blue")
                 elif hovered_ax == axs[1, 1]:
-                    new_line = draw_line_prompts(hovered_ax, i, hovered_token, attentions[i, hovered_token], spacing=1 / len(tokens), color="purple")
+                    new_line = draw_line_prompts(hovered_ax, i, hovered_token, attentions[i, hovered_token], spacing=1 / len(tokens), color="blue")
                 if hovered_ax == axs[1, 2]:
                     new_line = draw_line_diff(hovered_ax, i, hovered_token, attentions[i, hovered_token], spacing=1 / len(tokens))
                 hovered_lines.append(new_line)
@@ -431,8 +444,8 @@ def on_hover(event):
 
     hovered_ax = event.inaxes
     if hovered_ax not in axs: return #if it's not on the plot don't do anything
-    x_pos = int(np.floor(event.xdata))
-    y_pos = int(np.floor(event.ydata))
+    x_pos = round(event.xdata)
+    y_pos = round(event.ydata)
 
     attentions = None
     tokens_x = None

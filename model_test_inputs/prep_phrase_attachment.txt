@@ -26,3 +26,5 @@ They discussed the plan for dinner. How long did it take?
 They discussed the plan for hours. How long did it take?
 They discussed the plan for dinner. What was the plan for?
 They discussed the plan for hours. What was the plan for?
+They discussed the plan for dinner. How long was the discussion?
+They discussed the plan for hours. How long was the discussion?
