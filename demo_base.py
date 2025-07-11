@@ -1,0 +1,121 @@
+"""
+Base class for attention probe demonstrations.
+"""
+
+import subprocess
+from typing import List, Tuple
+from config import DEMO_CONFIGS, UI_CONFIG, VALIDATION_RULES
+from utils import ModelManager, validate_sentence, generate_contrast_prompt
+from attention_visualizer import AttentionVisualizer
+
+
+class BaseDemo:
+    """Base class for attention probe demonstrations."""
+    
+    def __init__(self, demo_type: str):
+        """
+        Initialize the demo with configuration.
+        
+        Args:
+            demo_type: Type of demo ('pronoun_resolution' or 'number_agreement')
+        """
+        if demo_type not in DEMO_CONFIGS:
+            raise ValueError(f"Unknown demo type: {demo_type}")
+            
+        self.config = DEMO_CONFIGS[demo_type]
+        self.model_manager = ModelManager("google/flan-t5-large")
+        self.prompt1 = ""
+        self.prompt2 = ""
+        
+    def execute_introduction(self):
+        """Display the demo introduction."""
+        print(f"Hello! Welcome to {self.config['name']}. In this demonstration, we will ask you to input two of your own prompts.")
+        print("We will run your sentences on Google's FLAN-T5 Large model, and will show you interesting attention heads. \n\n")
+        print(self.config['description'])
+        
+    def transition_description(self):
+        """Display the transition message."""
+        print("Now, we will present some of the notable attention heads. Press q to exit from the demonstration.")
+        
+    def get_user_prompt(self, prompt_number: int = 1) -> str:
+        """
+        Get a valid prompt from the user.
+        
+        Args:
+            prompt_number: Which prompt number this is (1 or 2)
+            
+        Returns:
+            Valid user prompt
+        """
+        print(f"Please input your prompt below. \nREQUIREMENTS: {self.config['validation_message']}")
+        
+        while True:
+            prompt = input(f"My prompt {prompt_number}: ")
+            
+            # Allow using default prompt
+            if prompt == "0":
+                return self.config[f'default_prompt{prompt_number}']
+                
+            # Validate the prompt
+            if validate_sentence(prompt, self.config['pronouns'], VALIDATION_RULES['max_pronoun_count']):
+                return prompt
+            else:
+                print("Your prompt does not satisfy the requirements. Please reenter a valid prompt below.")
+                
+    def generate_contrasting_prompt(self, original_prompt: str) -> str:
+        """
+        Generate a contrasting prompt from the original.
+        
+        Args:
+            original_prompt: The original user prompt
+            
+        Returns:
+            Contrasting prompt with pronoun swapped
+        """
+        try:
+            return generate_contrast_prompt(original_prompt, self.config['pronouns'])
+        except ValueError:
+            # Fallback to default if generation fails
+            return self.config['default_prompt2']
+            
+    def run_model_inference(self):
+        """Run both prompts through the model and display results."""
+        print("Let's run both your prompts through the model. Here is the output of the model below: ")
+        
+        for i, prompt in enumerate([self.prompt1, self.prompt2], 1):
+            response = self.model_manager.generate_response(
+                prompt, 
+                max_length=UI_CONFIG['max_generation_length']
+            )
+            print(f'{prompt}  ->  {response}')
+            
+    def launch_visualization(self):
+        """Launch the attention visualization."""
+        # Use the new visualizer instead of subprocess
+        visualizer = AttentionVisualizer(self.model_manager, [self.prompt1, self.prompt2])
+        visualizer.visualize()
+        
+    def run(self):
+        """Run the complete demo workflow."""
+        self.execute_introduction()
+        
+        # Get first prompt
+        self.prompt1 = self.get_user_prompt(1)
+        
+        # Generate contrasting prompt
+        print("Now, from your inputted prompt, we have generated an identical prompt, but with your instance of the "
+              "pronoun replaced with the other.")
+        self.prompt2 = self.generate_contrasting_prompt(self.prompt1)
+        print(self.prompt2)
+        
+        # Display prompts
+        print("\nYour two prompts are:")
+        print(f"Prompt1: {self.prompt1}")
+        print(f"Prompt2: {self.prompt2}")
+        
+        # Run model inference
+        self.run_model_inference()
+        
+        # Launch visualization
+        self.transition_description()
+        self.launch_visualization() 
