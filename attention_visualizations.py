@@ -21,8 +21,8 @@ def find_difference(t1, t2):
 
 # input and tokenizing
 # "The man gave the woman his jacket. Who owned the jacket, the man or the woman?"
-input_text1 = "John saw the thief"
-input_text2 = "John saw the cat"
+input_text1 = "The man showed the woman his jacket. Who owned the jacket, the man or the woman?"
+input_text2 = "The man showed the woman her jacket. Who owned the jacket, the man or the woman?"
 inputs = tokenizer([input_text1, input_text2],
                    padding=True,
                    return_tensors="pt",
@@ -123,7 +123,7 @@ def submit_layeridx(text):
     cur_layer_idx = int(text)
     plot_attention_head(cur_head_idx)
     range_slider.reset()
-    print(f"Layer: {cur_layer_idx} - Head: {cur_head_idx}")
+    # print(f"Layer: {cur_layer_idx} - Head: {cur_head_idx}")
 
 def submit_headidx(text):
     global cur_head_idx, cur_layer_idx
@@ -134,7 +134,7 @@ def submit_headidx(text):
     cur_head_idx = int(text)
     plot_attention_head(cur_head_idx)
     range_slider.reset()
-    print(f"Layer: {cur_layer_idx} - Head: {cur_head_idx}")
+    # print(f"Layer: {cur_layer_idx} - Head: {cur_head_idx}")
 
 def init_text_boxes(fig):
     global layer_textbox_ax, layer_textbox, head_textbox_ax, head_textbox
@@ -539,7 +539,7 @@ def next_attention_head(event):
     range_slider.reset()
     layer_textbox.set_val(str(cur_layer_idx))
     head_textbox.set_val(str(cur_head_idx))
-    print(f"Layer: {cur_layer_idx} - Head: {cur_head_idx}")
+    # print(f"Layer: {cur_layer_idx} - Head: {cur_head_idx}")
 
 def parse_args():
     global cur_head_idx, cur_layer_idx

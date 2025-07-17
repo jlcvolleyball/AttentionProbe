@@ -30,7 +30,7 @@ min_embedding1, min_embedding2 = float("inf"), float("inf")
 # for cosine sim matrix visualization
 ax = None
 
-my_input = "The jacket"
+my_input = "the the the"
 inputs = tokenizer(my_input, return_tensors="pt")
 inputs_ids = inputs.input_ids
 
