@@ -21,8 +21,8 @@ def find_difference(t1, t2):
 
 # input and tokenizing
 # "The man gave the woman his jacket. Who owned the jacket, the man or the woman?"
-input_text1 = "The man showed the woman his jacket. Who owned the jacket, the man or the woman?"
-input_text2 = "The man showed the woman her jacket. Who owned the jacket, the man or the woman?"
+input_text1 = "The man gave the woman his jacket. Who owned the jacket, the man or the woman?"
+input_text2 = "The man gave the woman her jacket. Who owned the jacket, the man or the woman?"
 inputs = tokenizer([input_text1, input_text2],
                    padding=True,
                    return_tensors="pt",
@@ -168,7 +168,10 @@ def draw_line_diff(ax, i, j, attention, spacing):
     y1 = 1 - (i + 0.6) * spacing
     y2 = 1 - (j + 0.6) * spacing
     cur_attention = attention
-    alpha = abs(cur_attention)
+    if 5*abs(cur_attention) < 1:
+        alpha = 5*abs(cur_attention)
+    else:
+        alpha = abs(cur_attention)
     if cur_attention < 0:
         return ax.plot(
             [0, 1],
