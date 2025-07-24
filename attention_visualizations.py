@@ -21,8 +21,8 @@ def find_difference(t1, t2):
 
 # input and tokenizing
 # "The man gave the woman his jacket. Who owned the jacket, the man or the woman?"
-input_text1 = "The man gave the woman his jacket. Who owned the jacket, the man or the woman?"
-input_text2 = "The man gave the woman her jacket. Who owned the jacket, the man or the woman?"
+input_text1 = "Yesterday, the big white fluffy cat walked down the long road in the morning."
+input_text2 = "Yesterday, the big white fluffy cat walked down the long road in the morning."
 inputs = tokenizer([input_text1, input_text2],
                    padding=True,
                    return_tensors="pt",
