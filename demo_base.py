@@ -21,6 +21,7 @@ class BaseDemo:
         """
         if demo_type not in DEMO_CONFIGS:
             raise ValueError(f"Unknown demo type: {demo_type}")
+        self.demo_type = demo_type
             
         self.config = DEMO_CONFIGS[demo_type]
         self.model_manager = ModelManager("google/flan-t5-large")
@@ -92,7 +93,7 @@ class BaseDemo:
     def launch_visualization(self):
         """Launch the attention visualization."""
         # Use the new visualizer instead of subprocess
-        visualizer = AttentionVisualizer(self.model_manager, [self.prompt1, self.prompt2])
+        visualizer = AttentionVisualizer(self.model_manager, [self.prompt1, self.prompt2], self.demo_type)
         visualizer.visualize()
         
     def run(self):

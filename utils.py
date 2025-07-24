@@ -5,6 +5,7 @@ Utility functions for the AttentionProbe application.
 from typing import List, Tuple, Optional
 import torch
 from transformers import T5Tokenizer, T5ForConditionalGeneration, T5Config
+import re
 
 
 def find_difference(tokens1: List[str], tokens2: List[str]) -> int:
@@ -40,15 +41,20 @@ def validate_sentence(sentence: str, required_pronouns: List[str], max_count: in
         True if sentence is valid, False otherwise
     """
     sentence_lower = sentence.lower()
+    words = re.findall(r'\b\w+\b', sentence_lower)
     
     # Check if any required pronoun is present
-    found_pronouns = [pronoun for pronoun in required_pronouns if f" {pronoun} " in sentence_lower]
+    found_pronouns = [pronoun for pronoun in required_pronouns if pronoun in words]
     
     if not found_pronouns:
         return False
+
+    # Only one of the pronouns should be in a sentence
+    if len(found_pronouns) > 1:
+        return False
     
     # Check that no more than max_count pronouns are present
-    total_count = sum(sentence_lower.count(f" {pronoun} ") for pronoun in required_pronouns)
+    total_count = sum(words.count(pronoun) for pronoun in required_pronouns)
     
     return total_count <= max_count
 
@@ -65,22 +71,20 @@ def generate_contrast_prompt(original_prompt: str, pronouns: List[str]) -> str:
         New prompt with pronoun swapped
     """
     original_lower = original_prompt.lower()
-    
-    for i, pronoun in enumerate(pronouns):
-        if f" {pronoun} " in original_lower:
-            # Find the other pronoun to swap with
-            other_pronoun = pronouns[(i + 1) % len(pronouns)]
-            pronoun_idx = original_lower.index(f" {pronoun} ")
-            
-            # Create new prompt with swapped pronoun
-            new_prompt = (
-                original_prompt[:pronoun_idx] + 
-                f" {other_pronoun} " + 
-                original_prompt[pronoun_idx + len(pronoun) + 2:]
-            )
-            return new_prompt
-    
-    raise ValueError(f"No pronoun from {pronouns} found in prompt")
+    words = re.findall(r'\b\w+\b|\W+', original_prompt)
+
+    found_pronoun = next((p for p in pronouns if p.lower() in [w.lower() for w in words]), None)
+    if not found_pronoun:
+        raise ValueError(f"No pronoun from {pronouns} found in prompt")
+
+    other_pronoun = pronouns[1] if found_pronoun == pronouns[0] else pronouns[0]
+
+    for i, cur in enumerate(words):
+        if re.fullmatch(r'\w+', cur) and cur.lower() == found_pronoun.lower():
+            words[i] = other_pronoun
+            break
+
+    return ''.join(words)
 
 
 class ModelManager:

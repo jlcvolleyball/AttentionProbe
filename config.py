@@ -24,7 +24,7 @@ DEMO_CONFIGS = {
         "default_prompt1": "A man walked into a room with two cats and a refrigerator. He scratched them. What did the man scratch?",
         "default_prompt2": "A man walked into a room with two cats and a refrigerator. He scratched it. What did the man scratch?",
         "validation_message": "This prompt must contain one of the following pronouns once: them, it",
-        "interesting_heads": [(0, 15), (2, 6), (2, 8), (2, 9), (3, 6), (3, 9)]
+        "interesting_heads": [(3, 9), (6, 14), (10, 9), (11, 15), (16, 10), (22, 14)]
     }
 }
 
@@ -33,7 +33,7 @@ UI_CONFIG = {
     "max_generation_length": 20,
     "slider_range": (0.0, 1.0),
     "slider_default": 1.0,
-    "figure_size": (15, 10),
+    "figure_size": (50, 8),
     "font_size": 10,
     "highlight_color": "red",
     "normal_color": "black"

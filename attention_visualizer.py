@@ -8,14 +8,14 @@ import numpy as np
 from matplotlib.widgets import Slider, TextBox
 from typing import List, Tuple, Optional, Dict, Any
 
-from config import UI_CONFIG
+from config import UI_CONFIG, DEMO_CONFIGS
 from utils import ModelManager, find_difference
 
 
 class AttentionVisualizer:
     """Handles attention visualization for T5 models."""
     
-    def __init__(self, model_manager: ModelManager, prompts: List[str]):
+    def __init__(self, model_manager: ModelManager, prompts: List[str], demo_type : str):
         """
         Initialize the attention visualizer.
         
@@ -24,21 +24,24 @@ class AttentionVisualizer:
             prompts: List of prompts to visualize
         """
         self.model_manager = model_manager
+        self.model_manager.load_model()
         self.prompts = prompts
         self.tokenizer = model_manager.tokenizer
         self.config = model_manager.config
-        
-        # Process inputs
-        self._process_inputs()
-        
-        # Visualization state
+
         self.cur_layer_idx = 0
         self.cur_head_idx = 0
         self.cur_overall_idx = 0
+        self._handle_demo_type(demo_type)
+        
+        # Visualization state
         self.fig = None
         self.axs = None
         self.tooltips = {}
         self.highlight_indices = None
+
+        # Process inputs
+        self._process_inputs()
         
         # UI elements
         self.range_slider = None
@@ -56,6 +59,17 @@ class AttentionVisualizer:
         self.all_lines2 = []
         self.all_lines3 = []
         self.hovered_lines = []
+
+    def _handle_demo_type(self, demo_type : str):
+        if demo_type == 'base': # this is the baseline visualization, with all the attention heads
+            self.cur_layer_idx = 0
+            self.cur_head_idx = 0
+            self.interesting_attns = [] # since this is the baseline, there are no "interesting" heads
+        else: # we are doing an actual demo
+            self.interesting_attns = DEMO_CONFIGS[demo_type]['interesting_heads']
+            self.cur_layer_idx = self.interesting_attns[0][0]
+            self.cur_head_idx = self.interesting_attns[0][1]
+
         
     def _process_inputs(self):
         """Process input prompts and get model outputs."""
@@ -143,7 +157,6 @@ class AttentionVisualizer:
         self.cur_layer_idx = int(text)
         self._plot_attention_head(self.cur_head_idx)
         self.range_slider.reset()
-        print(f"Layer: {self.cur_layer_idx} - Head: {self.cur_head_idx}")
         
     def _submit_headidx(self, text):
         """Handle head index submission."""
@@ -154,7 +167,6 @@ class AttentionVisualizer:
         self.cur_head_idx = int(text)
         self._plot_attention_head(self.cur_head_idx)
         self.range_slider.reset()
-        print(f"Layer: {self.cur_layer_idx} - Head: {self.cur_head_idx}")
         
     def _init_text_boxes(self):
         """Initialize text boxes for layer and head selection."""
@@ -262,13 +274,12 @@ class AttentionVisualizer:
                     color=color, weight=weight, transform=ax4.transAxes)
             ax4.text(1, y, token, ha='left', va='center', fontsize=UI_CONFIG['font_size'], 
                     color=color, weight=weight, transform=ax4.transAxes)
-            
-        # Draw attention lines
         for i in range(len(self.tokens1)):
             for j in range(len(self.tokens1)):
                 attention_val = self.cur_layer_attentions[0, self.cur_head_idx, i, j].item()
                 line = self._draw_line_prompts(ax4, i, j, attention_val, spacing1, 'blue')
                 self.all_lines1.append(line)
+        ax4.axis("off")
                 
         # Similar for second prompt
         spacing2 = 1 / len(self.tokens2)
@@ -281,12 +292,12 @@ class AttentionVisualizer:
                     color=color, weight=weight, transform=ax5.transAxes)
             ax5.text(1, y, token, ha='left', va='center', fontsize=UI_CONFIG['font_size'], 
                     color=color, weight=weight, transform=ax5.transAxes)
-            
         for i in range(len(self.tokens2)):
             for j in range(len(self.tokens2)):
                 attention_val = self.cur_layer_attentions[1, self.cur_head_idx, i, j].item()
                 line = self._draw_line_prompts(ax5, i, j, attention_val, spacing2, 'blue')
                 self.all_lines2.append(line)
+        ax5.axis("off")
                 
         # Difference visualization
         spacing3 = 1 / len(self.tokens3)
@@ -299,7 +310,6 @@ class AttentionVisualizer:
                     color=color, weight=weight, transform=ax6.transAxes)
             ax6.text(1, y, token, ha='left', va='center', fontsize=UI_CONFIG['font_size'], 
                     color=color, weight=weight, transform=ax6.transAxes)
-                    
         for i in range(len(self.tokens3)):
             for j in range(len(self.tokens3)):
                 attn1 = self.cur_layer_attentions[0, self.cur_head_idx, i, j].item()
@@ -307,41 +317,42 @@ class AttentionVisualizer:
                 diff = attn1 - attn2
                 line = self._draw_line_diff(ax6, i, j, diff, spacing3)
                 self.all_lines3.append(line)
+        ax6.axis("off")
                 
     def _init_matrix_visualizations(self, ax1, ax2, ax3):
         """Initialize matrix-based visualizations."""
         # First prompt attention matrix
         attn1 = self.cur_layer_attentions[0, self.cur_head_idx].detach().numpy()
-        self.im1 = ax1.imshow(attn1, cmap='Blues', aspect='auto')
-        ax1.set_title(f'Prompt 1 - Layer {self.cur_layer_idx}, Head {self.cur_head_idx}')
-        ax1.set_xticks(range(len(self.tokens1)))
-        ax1.set_xticklabels(self.tokens1, rotation=45, ha='right')
-        ax1.set_yticks(range(len(self.tokens1)))
+        ax1.set_title("Sentence 1 Attention")
+        ax1.set_xticks(np.arange(len(self.tokens1)))
+        ax1.set_yticks(np.arange(len(self.tokens1)))
+        ax1.set_xticklabels(self.tokens1, rotation=90)
         ax1.set_yticklabels(self.tokens1)
+        self.im1 = ax1.imshow(attn1)
         self._text_colorchange(ax1)
-        plt.colorbar(self.im1, ax=ax1)
+        # plt.colorbar(self.im1, ax=ax1)
         
         # Second prompt attention matrix
         attn2 = self.cur_layer_attentions[1, self.cur_head_idx].detach().numpy()
-        self.im2 = ax2.imshow(attn2, cmap='Blues', aspect='auto')
-        ax2.set_title(f'Prompt 2 - Layer {self.cur_layer_idx}, Head {self.cur_head_idx}')
-        ax2.set_xticks(range(len(self.tokens2)))
-        ax2.set_xticklabels(self.tokens2, rotation=45, ha='right')
-        ax2.set_yticks(range(len(self.tokens2)))
+        ax2.set_title("Sentence 2 Attention")
+        ax2.set_xticks(np.arange(len(self.tokens2)))
+        ax2.set_yticks(np.arange(len(self.tokens2)))
+        ax2.set_xticklabels(self.tokens2, rotation=90)
         ax2.set_yticklabels(self.tokens2)
+        self.im2 = ax2.imshow(attn2)
         self._text_colorchange(ax2)
-        plt.colorbar(self.im2, ax=ax2)
+        # plt.colorbar(self.im2, ax=ax2)
         
         # Difference matrix
         diff = attn1 - attn2
-        self.im_diff = ax3.imshow(diff, cmap='RdBu_r', aspect='auto', vmin=-np.max(np.abs(diff)), vmax=np.max(np.abs(diff)))
-        ax3.set_title(f'Difference - Layer {self.cur_layer_idx}, Head {self.cur_head_idx}')
-        ax3.set_xticks(range(len(self.tokens3)))
-        ax3.set_xticklabels(self.tokens3, rotation=45, ha='right')
-        ax3.set_yticks(range(len(self.tokens3)))
+        ax3.set_title(f'Difference')
+        ax3.set_xticks(np.arange(len(self.tokens3)))
+        ax3.set_yticks(np.arange(len(self.tokens3)))
+        ax3.set_xticklabels(self.tokens3, rotation=90)
         ax3.set_yticklabels(self.tokens3)
+        self.im_diff = ax3.imshow(diff)
         self._text_colorchange(ax3)
-        plt.colorbar(self.im_diff, ax=ax3)
+        # plt.colorbar(self.im_diff, ax=ax3)
         
         # Store original ranges
         self.original_range_im1 = (self.im1.get_array().min(), self.im1.get_array().max())
@@ -411,17 +422,42 @@ class AttentionVisualizer:
         
     def _next_attention_head(self, event):
         """Move to next attention head."""
-        if event.key == 'right':
-            self.cur_head_idx = (self.cur_head_idx + 1) % self.num_heads_per_layer
-        elif event.key == 'left':
-            self.cur_head_idx = (self.cur_head_idx - 1) % self.num_heads_per_layer
-        elif event.key == 'up':
-            self.cur_layer_idx = (self.cur_layer_idx + 1) % self.total_num_layers
-        elif event.key == 'down':
-            self.cur_layer_idx = (self.cur_layer_idx - 1) % self.total_num_layers
-        elif event.key == 'q':
-            plt.close(self.fig)
-            return
+        if len(self.interesting_attns) == 0:
+            # base attention visualizations
+            if event.key == 'right':
+                self.cur_head_idx = (self.cur_head_idx + 1) % self.num_heads_per_layer
+            elif event.key == 'left':
+                self.cur_head_idx = (self.cur_head_idx - 1) % self.num_heads_per_layer
+            elif event.key == 'up':
+                self.cur_layer_idx = (self.cur_layer_idx + 1) % self.total_num_layers
+            elif event.key == 'down':
+                self.cur_layer_idx = (self.cur_layer_idx - 1) % self.total_num_layers
+            elif event.key == 'q':
+                plt.close(self.fig)
+                return
+        else:
+            # we are currently in another demo, set the next attn head to the next in the list
+            # of interesting attentions
+            if event.key == 'right':
+                self.cur_overall_idx += 1
+                if self.cur_overall_idx >= len(self.interesting_attns):
+                    self.cur_overall_idx = 0
+            elif event.key == 'left':
+                self.cur_overall_idx -= 1
+                if self.cur_overall_idx < 0:
+                    cur_overall_idx = len(self.interesting_attns) - 1
+            elif event.key == 'up':
+                self.cur_overall_idx += 1
+                if self.cur_overall_idx >= len(self.interesting_attns):
+                    self.cur_overall_idx = 0
+            elif event.key == 'down':
+                self.cur_overall_idx -= 1
+                if self.cur_overall_idx < 0:
+                    cur_overall_idx = len(self.interesting_attns) - 1
+            elif event.key == 'q':
+                plt.close(self.fig)
+                return
+            self.cur_layer_idx, self.cur_head_idx = self.interesting_attns[self.cur_overall_idx]
             
         self._plot_attention_head(self.cur_head_idx)
         
@@ -429,7 +465,11 @@ class AttentionVisualizer:
         """Create and display the attention visualization."""
         # Create figure and subplots
         self.fig, self.axs = plt.subplots(2, 3, figsize=UI_CONFIG['figure_size'])
-        self.fig.suptitle('Attention Visualization', fontsize=16)
+        self.fig.subplots_adjust(
+            left=0.075, right=0.925,
+            top=0.9, bottom=0.1,
+            wspace=0.5
+        )
         
         # Initialize UI elements
         self._init_slider()
@@ -444,21 +484,27 @@ class AttentionVisualizer:
         self.fig.canvas.mpl_connect('axes_leave_event', self._on_unhover)
         self.fig.canvas.mpl_connect('key_press_event', self._next_attention_head)
         
-        plt.tight_layout()
+        # plt.tight_layout()
         plt.show()
 
 
 def main():
     """Main function for attention visualization."""
-    if len(sys.argv) != 3:
-        print("Usage: python attention_visualizer.py <prompt1> <prompt2>")
+    prompt1, prompt2, demo_type = "", "", None
+    if len(sys.argv) < 3:
+        print("Usage: python attention_visualizer.py <prompt1> <prompt2> <demo_type>")
+        print("<demo_type>: supports 'base', 'pronoun resolution', ")
         sys.exit(1)
-        
-    prompt1, prompt2 = sys.argv[1], sys.argv[2]
+    elif len(sys.argv) == 3:
+        prompt1, prompt2 = sys.argv[1], sys.argv[2]
+        demo_type = 'base'
+    elif len(sys.argv) == 4:
+        prompt1, prompt2 = sys.argv[1], sys.argv[2]
+        demo_type = sys.argv[3]
     
     # Initialize model and visualizer
     model_manager = ModelManager("google/flan-t5-large")
-    visualizer = AttentionVisualizer(model_manager, [prompt1, prompt2])
+    visualizer = AttentionVisualizer(model_manager, [prompt1, prompt2], demo_type)
     
     # Display visualization
     visualizer.visualize()
