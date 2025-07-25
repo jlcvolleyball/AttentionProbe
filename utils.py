@@ -28,14 +28,14 @@ def find_difference(tokens1: List[str], tokens2: List[str]) -> int:
     return -1
 
 
-def validate_sentence(sentence: str, required_pronouns: List[str], max_count: int = 1) -> bool:
+def validate_sentence(sentence: str, required_keywords: List[str], max_count: int = 1) -> bool:
     """
-    Validate that a sentence contains exactly one of the required pronouns.
+    Validate that a sentence contains exactly one of the required keywords.
     
     Args:
         sentence: Input sentence to validate
-        required_pronouns: List of pronouns that should be present
-        max_count: Maximum number of pronouns allowed
+        required_keywords: List of keywords that should be present
+        max_count: Maximum number of keywords allowed
         
     Returns:
         True if sentence is valid, False otherwise
@@ -43,48 +43,51 @@ def validate_sentence(sentence: str, required_pronouns: List[str], max_count: in
     sentence_lower = sentence.lower()
     words = re.findall(r'\b\w+\b', sentence_lower)
     
-    # Check if any required pronoun is present
-    found_pronouns = [pronoun for pronoun in required_pronouns if pronoun in words]
+    # Check if any required keyword is present
+    found_keywords = [keyword for keyword in required_keywords if keyword in words]
     
-    if not found_pronouns:
+    if not found_keywords:
         return False
 
-    # Only one of the pronouns should be in a sentence
-    if len(found_pronouns) > 1:
+    # Only one of the keywords should be in a sentence
+    if len(found_keywords) > 1:
         return False
     
-    # Check that no more than max_count pronouns are present
-    total_count = sum(words.count(pronoun) for pronoun in required_pronouns)
+    # Check that no more than max_count keywords are present
+    total_count = sum(words.count(keyword) for keyword in required_keywords)
     
     return total_count <= max_count
 
 
-def generate_contrast_prompt(original_prompt: str, pronouns: List[str]) -> str:
+def generate_contrast_prompt(original_prompt: str, keywords: List[str], auto_generate: bool) -> str:
     """
     Generate a contrasting prompt by replacing one pronoun with another.
     
     Args:
-        original_prompt: Original prompt containing a pronoun
-        pronouns: List of pronouns to swap between
+        original_prompt: Original prompt containing a keywords
+        keywords: List of keywords to swap between
         
     Returns:
-        New prompt with pronoun swapped
+        New prompt with keyword swapped
     """
-    original_lower = original_prompt.lower()
-    words = re.findall(r'\b\w+\b|\W+', original_prompt)
+    if auto_generate:
+        words = re.findall(r'\b\w+\b|\W+', original_prompt)
 
-    found_pronoun = next((p for p in pronouns if p.lower() in [w.lower() for w in words]), None)
-    if not found_pronoun:
-        raise ValueError(f"No pronoun from {pronouns} found in prompt")
+        found_keyword = next((p for p in keywords if p.lower() in [w.lower() for w in words]), None)
+        if not found_keyword:
+            raise ValueError(f"No keyword from {keywords} found in prompt")
 
-    other_pronoun = pronouns[1] if found_pronoun == pronouns[0] else pronouns[0]
+        other_keyword = keywords[1] if found_keyword == keywords[0] else keywords[0]
 
-    for i, cur in enumerate(words):
-        if re.fullmatch(r'\w+', cur) and cur.lower() == found_pronoun.lower():
-            words[i] = other_pronoun
-            break
+        for i, cur in enumerate(words):
+            if re.fullmatch(r'\w+', cur) and cur.lower() == found_keyword.lower():
+                words[i] = other_keyword
+                break
 
-    return ''.join(words)
+        return ''.join(words)
+    else:
+        # handle within the demo
+        return ""
 
 
 class ModelManager:

@@ -37,28 +37,28 @@ class BaseDemo:
     def transition_description(self):
         """Display the transition message."""
         print("Now, we will present some of the notable attention heads. Press q to exit from the demonstration.")
-        
+
     def get_user_prompt(self, prompt_number: int = 1) -> str:
         """
         Get a valid prompt from the user.
-        
+
         Args:
             prompt_number: Which prompt number this is (1 or 2)
-            
+
         Returns:
             Valid user prompt
         """
         print(f"Please input your prompt below. \nREQUIREMENTS: {self.config['validation_message']}")
-        
+
         while True:
             prompt = input(f"My prompt {prompt_number}: ")
-            
+
             # Allow using default prompt
             if prompt == "0":
                 return self.config[f'default_prompt{prompt_number}']
-                
+
             # Validate the prompt
-            if validate_sentence(prompt, self.config['pronouns'], VALIDATION_RULES['max_pronoun_count']):
+            if validate_sentence(prompt, self.config['keywords'], VALIDATION_RULES['max_pronoun_count']):
                 return prompt
             else:
                 print("Your prompt does not satisfy the requirements. Please reenter a valid prompt below.")
@@ -74,7 +74,10 @@ class BaseDemo:
             Contrasting prompt with pronoun swapped
         """
         try:
-            return generate_contrast_prompt(original_prompt, self.config['pronouns'])
+            prompt = generate_contrast_prompt(original_prompt, self.config['keywords'], self.config['auto_generate_prompt2'])
+            if prompt == "":
+                return self.get_user_prompt(2)
+            return prompt
         except ValueError:
             # Fallback to default if generation fails
             return self.config['default_prompt2']
@@ -102,12 +105,15 @@ class BaseDemo:
         
         # Get first prompt
         self.prompt1 = self.get_user_prompt(1)
-        
-        # Generate contrasting prompt
-        print("Now, from your inputted prompt, we have generated an identical prompt, but with your instance of the "
-              "pronoun replaced with the other.")
-        self.prompt2 = self.generate_contrasting_prompt(self.prompt1)
-        print(self.prompt2)
+
+        if self.config['need_prompt2']:
+            # Generate contrasting prompt
+            print("Now, from your inputted prompt, we have generated an identical prompt, but with your instance of the "
+                  "pronoun replaced with the other.")
+            self.prompt2 = self.generate_contrasting_prompt(self.prompt1)
+            print(self.prompt2)
+        else:
+            self.prompt2 = self.prompt1
         
         # Display prompts
         print("\nYour two prompts are:")
