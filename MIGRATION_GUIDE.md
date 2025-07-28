@@ -171,10 +171,10 @@ python test_refactored.py
 ### Test Functionality
 ```bash
 # Test Demo 1
-python demo1_refactored.py
+python demo_pronoun_res.py
 
 # Test Demo 2  
-python demo2_refactored.py
+python demo_number_agreement.py
 
 # Test direct visualization
 python attention_visualizer.py "The man showed his jacket" "The man showed her jacket"
