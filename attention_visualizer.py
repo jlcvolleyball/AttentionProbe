@@ -40,6 +40,11 @@ class AttentionVisualizer:
         self.tooltips = {}
         self.highlight_indices = None
 
+        # Colorbars
+        self.cb1 = None
+        self.cb2 = None
+        self.cb3 = None
+
         # Process inputs
         self._process_inputs()
         
@@ -330,7 +335,7 @@ class AttentionVisualizer:
         ax1.set_yticklabels(self.tokens1)
         self.im1 = ax1.imshow(attn1)
         self._text_colorchange(ax1)
-        # plt.colorbar(self.im1, ax=ax1)
+        self.cb1 = self.fig.colorbar(self.im1, ax=ax1, shrink=0.8, pad=0.1)
         
         # Second prompt attention matrix
         attn2 = self.cur_layer_attentions[1, self.cur_head_idx].detach().numpy()
@@ -341,7 +346,7 @@ class AttentionVisualizer:
         ax2.set_yticklabels(self.tokens2)
         self.im2 = ax2.imshow(attn2)
         self._text_colorchange(ax2)
-        # plt.colorbar(self.im2, ax=ax2)
+        self.cb2 = self.fig.colorbar(self.im2, ax=ax2, shrink=0.8, pad=0.1)
         
         # Difference matrix
         diff = attn1 - attn2
@@ -352,7 +357,7 @@ class AttentionVisualizer:
         ax3.set_yticklabels(self.tokens3)
         self.im_diff = ax3.imshow(diff)
         self._text_colorchange(ax3)
-        # plt.colorbar(self.im_diff, ax=ax3)
+        self.cb3 = self.fig.colorbar(self.im_diff, ax=ax3, shrink=0.8, pad=0.1)
         
         # Store original ranges
         self.original_range_im1 = (self.im1.get_array().min(), self.im1.get_array().max())
@@ -363,6 +368,17 @@ class AttentionVisualizer:
         """Plot attention for a specific head."""
         self.cur_head_idx = head_idx
         self.cur_layer_attentions = self.outputs.encoder_attentions[self.cur_layer_idx]
+
+        # Handle colorbar loading
+        if self.cb1: self.cb1.remove()
+        if self.cb2: self.cb2.remove()
+        if self.cb3: self.cb3.remove()
+
+        self.fig.subplots_adjust(
+            left=0.075, right=0.925,
+            top=0.9, bottom=0.1,
+            wspace=0.5
+        )
         
         # Clear previous visualizations
         for ax in self.axs.flatten():
@@ -493,7 +509,17 @@ def main():
     prompt1, prompt2, demo_type = "", "", None
     if len(sys.argv) < 3:
         print("Usage: python attention_visualizer.py <prompt1> <prompt2> <demo_type>")
-        print("<demo_type>: supports 'base', 'pronoun resolution', ")
+        print("<demo_type>: supports 'base', 'pronoun_resolution', 'number_agreement', 'noun_phrases', and 'prep_phrase_attach'")
+        print("            base: All attention heads in all layers are shown. Intended for exploration purposes")
+        print("            pronoun_resolution: Attention heads of interest exhibiting pronoun resolution are shown")
+        print("            number_agreement: Attention heads of interest exhibiting number agreement are shown")
+        print("            noun_phrases: Attention heads of interest exhibiting noun phrase identification are shown")
+        print("            prep_phrase_attachment: Attention heads of interest exhibiting prepositional phrase attachment are shown")
+        print("Note that for the latter four demo_type options, it would make the most sense to input prompts that demonstrate"
+              "the option specified.\n")
+        print("Example Usage: \n"
+              "python attention_visualizer.py 'The man gave the woman his jacket.' 'The man gave the woman her jacket.' 'pronoun_resolution'" 
+              "\n\n")
         sys.exit(1)
     elif len(sys.argv) == 3:
         prompt1, prompt2 = sys.argv[1], sys.argv[2]
