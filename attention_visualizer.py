@@ -45,6 +45,12 @@ class AttentionVisualizer:
         self.cb2 = None
         self.cb3 = None
 
+        # Textboxes (to jump to different heads)
+        self.layer_textbox_ax = None
+        self.head_textbox_ax = None
+        self.layer_textbox = None
+        self.head_textbox = None
+
         # Process inputs
         self._process_inputs()
         
@@ -152,42 +158,6 @@ class AttentionVisualizer:
         )
         self.range_slider.poly.set_alpha(0.0)
         self.range_slider.on_changed(self._slider_update)
-        
-    def _submit_layeridx(self, text):
-        """Handle layer index submission."""
-        if not text.isdigit():
-            print("Error: You entered an invalid layer number.")
-            return
-            
-        self.cur_layer_idx = int(text)
-        self._plot_attention_head(self.cur_head_idx)
-        self.range_slider.reset()
-        
-    def _submit_headidx(self, text):
-        """Handle head index submission."""
-        if not text.isdigit():
-            print("Error: You entered an invalid head number.")
-            return
-            
-        self.cur_head_idx = int(text)
-        self._plot_attention_head(self.cur_head_idx)
-        self.range_slider.reset()
-        
-    def _init_text_boxes(self):
-        """Initialize text boxes for layer and head selection."""
-        layer_textbox_ax = self.fig.add_axes([0.45, 0.925, 0.05, 0.05])
-        head_textbox_ax = self.fig.add_axes([0.55, 0.925, 0.05, 0.05])
-        
-        self.layer_textbox = TextBox(layer_textbox_ax, label='Layer ', initial="0")
-        self.head_textbox = TextBox(head_textbox_ax, label='Head ', initial="0")
-        
-        self.layer_textbox.on_submit(self._submit_layeridx)
-        self.head_textbox.on_submit(self._submit_headidx)
-        
-        # Set font sizes
-        for textbox in [self.layer_textbox, self.head_textbox]:
-            textbox.label.set_fontsize(16)
-            textbox.text_disp.set_fontsize(16)
             
     def _init_tooltip(self):
         """Initialize tooltips for the visualization."""
@@ -363,16 +333,65 @@ class AttentionVisualizer:
         self.original_range_im1 = (self.im1.get_array().min(), self.im1.get_array().max())
         self.original_range_im2 = (self.im2.get_array().min(), self.im2.get_array().max())
         self.original_range_imdiff = (self.im_diff.get_array().min(), self.im_diff.get_array().max())
+
+    def _submit_layeridx(self, text):
+        """ Handle when user inputs a new layer index """
+        if len(self.interesting_attns) != 0:
+            print("Error: do not directly change the attention head field and layer field while in a demo. ")
+            print("If you would like to explore the heads on your own, please run attention_visualizer.py." 
+                  "Check usages by running python attention_visualizer.py")
+            plt.close()
+            exit(1)
+        if not text.isdigit():
+            print("Error: You entered an invalid layer number. Program exit")
+            plt.close()
+            exit(1)
+        self.cur_layer_idx = int(text)
+        self._plot_attention_head(self.cur_head_idx, self.cur_layer_idx)
+        self.range_slider.reset()
+
+    def _submit_headidx(self, text):
+        """ Handle when user inputs a new head index """
+        if len(self.interesting_attns) != 0:
+            print("Error: do not directly change the attention head field and layer field while in a demo. ")
+            print("If you would like to explore the heads on your own, please run attention_visualizer.py.\n" 
+                  "Check usages by running python attention_visualizer.py")
+            plt.close()
+            exit(1)
+        if not text.isdigit():
+            print("Error: You entered an invalid layer number. Program exit")
+            plt.close()
+            exit(1)
+        self.cur_head_idx = int(text)
+        self._plot_attention_head(self.cur_head_idx, self.cur_layer_idx)
+        self.range_slider.reset()
+
+    def _init_text_boxes(self):
+        self.layer_textbox_ax = self.fig.add_axes([0.45, 0.925, 0.05, 0.05])
+        self.head_textbox_ax = self.fig.add_axes([0.55, 0.925, 0.05, 0.05])
+        self.layer_textbox = TextBox(self.layer_textbox_ax, label='Layer ', initial=str(self.cur_layer_idx))
+        self.head_textbox = TextBox(self.head_textbox_ax, label='Head ', initial=str(self.cur_head_idx))
+        self.layer_textbox.on_submit(self._submit_layeridx)
+        self.head_textbox.on_submit(self._submit_headidx)
+        self.layer_textbox.label.set_fontsize(16)
+        self.layer_textbox.text_disp.set_fontsize(16)
+        self.head_textbox.label.set_fontsize(16)
+        self.head_textbox.text_disp.set_fontsize(16)
         
-    def _plot_attention_head(self, head_idx):
+    def _plot_attention_head(self, head_idx, layer_idx):
         """Plot attention for a specific head."""
         self.cur_head_idx = head_idx
+        self.cur_layer_idx = layer_idx
         self.cur_layer_attentions = self.outputs.encoder_attentions[self.cur_layer_idx]
 
         # Handle colorbar loading
         if self.cb1: self.cb1.remove()
         if self.cb2: self.cb2.remove()
         if self.cb3: self.cb3.remove()
+
+        # Initialize the textboxes
+        if not self.head_textbox and not self.layer_textbox:
+            self._init_text_boxes()
 
         self.fig.subplots_adjust(
             left=0.075, right=0.925,
@@ -387,10 +406,6 @@ class AttentionVisualizer:
         # Reinitialize visualizations
         self._init_matrix_visualizations(self.axs[0, 0], self.axs[0, 1], self.axs[0, 2])
         self._init_line_visualizations(self.axs[1, 0], self.axs[1, 1], self.axs[1, 2])
-        
-        # Update text boxes
-        self.layer_textbox.set_val(str(self.cur_layer_idx))
-        self.head_textbox.set_val(str(self.cur_head_idx))
         
         self.fig.canvas.draw()
         
@@ -440,42 +455,48 @@ class AttentionVisualizer:
         """Move to next attention head."""
         if len(self.interesting_attns) == 0:
             # base attention visualizations
-            if event.key == 'right':
-                self.cur_head_idx = (self.cur_head_idx + 1) % self.num_heads_per_layer
-            elif event.key == 'left':
-                self.cur_head_idx = (self.cur_head_idx - 1) % self.num_heads_per_layer
-            elif event.key == 'up':
-                self.cur_layer_idx = (self.cur_layer_idx + 1) % self.total_num_layers
-            elif event.key == 'down':
-                self.cur_layer_idx = (self.cur_layer_idx - 1) % self.total_num_layers
+            if event.key == 'right' or event.key == 'up':
+                if self.cur_layer_idx == self.total_num_layers - 1 and self.cur_head_idx == self.num_heads_per_layer - 1:
+                    self.cur_layer_idx = 0
+                    self.cur_head_idx = 0
+                elif self.cur_head_idx == self.num_heads_per_layer - 1:
+                    self.cur_head_idx = 0
+                    self.cur_layer_idx += 1
+                else:
+                    self.cur_head_idx += 1
+                self.layer_textbox.set_val(str(self.cur_layer_idx))
+                self.head_textbox.set_val(str(self.cur_head_idx))
+            elif event.key == 'left' or event.key == 'down':
+                if self.cur_layer_idx == 0 and self.cur_head_idx == 0:
+                    self.cur_layer_idx = self.total_num_layers - 1
+                    self.cur_head_idx = self.num_heads_per_layer - 1
+                elif self.cur_head_idx == 0:
+                    self.cur_head_idx = self.num_heads_per_layer - 1
+                    self.cur_layer_idx -= 1
+                else:
+                    self.cur_head_idx -= 1
+                self.layer_textbox.set_val(str(self.cur_layer_idx))
+                self.head_textbox.set_val(str(self.cur_head_idx))
             elif event.key == 'q':
                 plt.close(self.fig)
                 return
         else:
             # we are currently in another demo, set the next attn head to the next in the list
             # of interesting attentions
-            if event.key == 'right':
+            if event.key == 'right' or event.key == 'up':
                 self.cur_overall_idx += 1
                 if self.cur_overall_idx >= len(self.interesting_attns):
                     self.cur_overall_idx = 0
-            elif event.key == 'left':
+            elif event.key == 'left' or event.key == 'down':
                 self.cur_overall_idx -= 1
                 if self.cur_overall_idx < 0:
-                    cur_overall_idx = len(self.interesting_attns) - 1
-            elif event.key == 'up':
-                self.cur_overall_idx += 1
-                if self.cur_overall_idx >= len(self.interesting_attns):
-                    self.cur_overall_idx = 0
-            elif event.key == 'down':
-                self.cur_overall_idx -= 1
-                if self.cur_overall_idx < 0:
-                    cur_overall_idx = len(self.interesting_attns) - 1
+                    self.cur_overall_idx = len(self.interesting_attns) - 1
             elif event.key == 'q':
                 plt.close(self.fig)
                 return
             self.cur_layer_idx, self.cur_head_idx = self.interesting_attns[self.cur_overall_idx]
-            
-        self._plot_attention_head(self.cur_head_idx)
+            self.layer_textbox.set_val(str(self.cur_layer_idx))
+            self.head_textbox.set_val(str(self.cur_head_idx))
         
     def visualize(self):
         """Create and display the attention visualization."""
@@ -493,7 +514,7 @@ class AttentionVisualizer:
         self._init_tooltip()
         
         # Initial plot
-        self._plot_attention_head(self.cur_head_idx)
+        self._plot_attention_head(self.cur_head_idx, self.cur_layer_idx)
         
         # Connect events
         self.fig.canvas.mpl_connect('motion_notify_event', self._on_hover)
