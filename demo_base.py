@@ -58,7 +58,7 @@ class BaseDemo:
                 return self.config[f'default_prompt{prompt_number}']
 
             # Validate the prompt
-            if validate_sentence(prompt, self.config['keywords'], VALIDATION_RULES['max_pronoun_count']):
+            if validate_sentence(prompt, self.config['keywords'], self.config['max_keyword_count']):
                 return prompt
             else:
                 print("Your prompt does not satisfy the requirements. Please reenter a valid prompt below.")

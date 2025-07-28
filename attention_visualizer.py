@@ -367,8 +367,8 @@ class AttentionVisualizer:
         self.range_slider.reset()
 
     def _init_text_boxes(self):
-        self.layer_textbox_ax = self.fig.add_axes([0.45, 0.925, 0.05, 0.05])
-        self.head_textbox_ax = self.fig.add_axes([0.55, 0.925, 0.05, 0.05])
+        self.layer_textbox_ax = self.fig.add_axes([0.45, 0.945, 0.05, 0.05])
+        self.head_textbox_ax = self.fig.add_axes([0.55, 0.945, 0.05, 0.05])
         self.layer_textbox = TextBox(self.layer_textbox_ax, label='Layer ', initial=str(self.cur_layer_idx))
         self.head_textbox = TextBox(self.head_textbox_ax, label='Head ', initial=str(self.cur_head_idx))
         self.layer_textbox.on_submit(self._submit_layeridx)

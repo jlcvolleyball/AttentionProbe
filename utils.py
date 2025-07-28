@@ -28,7 +28,7 @@ def find_difference(tokens1: List[str], tokens2: List[str]) -> int:
     return -1
 
 
-def validate_sentence(sentence: str, required_keywords: List[str], max_count: int = 1) -> bool:
+def validate_sentence(sentence: str, required_keywords: List[str], max_count: int) -> bool:
     """
     Validate that a sentence contains exactly one of the required keywords.
     
@@ -54,8 +54,10 @@ def validate_sentence(sentence: str, required_keywords: List[str], max_count: in
         return False
     
     # Check that no more than max_count keywords are present
-    total_count = sum(words.count(keyword) for keyword in required_keywords)
-    
+    if max_count > 0:
+        total_count = sum(words.count(keyword) for keyword in required_keywords)
+    else: # max_count must be -1, which means unlimited keywords are allowed (ex: for noun phrases)
+        return True
     return total_count <= max_count
 
 
