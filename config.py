@@ -6,11 +6,26 @@ Configuration settings for the AttentionProbe application.
 MODEL_NAME = "google/flan-t5-large"
 DEVICE = "cpu"
 
+"""
+print("Below, we will ask you to input your own prompt."
+      "Further guidelines are below: \n"
+      "1. This is the possessive pronoun resolution mini demo. Therefore, make sure to include in your prompt exactly one occurance of \n"
+      "    a possessive pronoun: his, her, their, its my, your \n"
+      "2. Please keep this prompt relatively short and simple for best visualization.\n"
+      "3. Your prompt can include a question if you would like. \n\n")
+"""
+
 # Demo Configuration
 DEMO_CONFIGS = {
     "pronoun_resolution": {
         "name": "Demo 1",
         "description": "In this demo, we will focus on attention heads that perform pronoun resolution.",
+        "description-details": "We will ask you to input one prompt of your own. Further guidelines are below: \n"
+                                "1. Make sure to include in your prompt exactly one occurence of the pronouns: his, her. \n"
+                                "2. Please keep this prompt relatively short and simple for best visualization. \n"
+                                "3. Your prompt can include a question if you would like. \n"
+                                "Example prompt: The man showed the woman his jacket. Who owned the jacket, the man or the woman? \n\n"
+                                "To use the example prompt as your prompt, type 0 and hit enter when you are asked to input your prompt. ",
         "keywords": ["his", "her"],
         "max_keyword_count": 1,
         "auto_generate_prompt2": True,
@@ -23,6 +38,12 @@ DEMO_CONFIGS = {
     "number_agreement": {
         "name": "Demo 2", 
         "description": "In this demo, we will focus on attention heads that pay attention to number agreement.",
+        "description-details": "We will ask you to input one prompt of your own. Further guidelines are below: \n"
+                               "1. Make sure to include in your prompt exactly one occurence of the pronouns: them, it. \n"
+                               "2. Please keep this prompt relatively short and simple for best visualization. \n"
+                               "3. Your prompt can include a question if you would like. \n"
+                               "Example prompt: A man walked into a room with two cats and a refrigerator. He scratched them. What did the man scratch? \n\n"
+                               "To use the example prompt as your prompt, type 0 and hit enter when you are asked to input your prompt. ",
         "keywords": ["them", "it"],
         "max_keyword_count": 1,
         "auto_generate_prompt2": True,
@@ -35,6 +56,12 @@ DEMO_CONFIGS = {
     "noun_phrases": {
         "name": "Demo 3",
         "description": "In this demo, we will focus on attention heads that identify noun phrases, mapping the phrase to the first 'the' in the noun phrase",
+        "description-details": "We will ask you to input one prompt of your own. Further guidelines are below: \n"
+                               "1. Make sure to include in your prompt at least one noun phrase that begins with 'the' \n"
+                               "2. Please keep this prompt relatively short and simple for best visualization. \n"
+                               "3. Your prompt can include a question if you would like. \n"
+                               "Example prompt: The big white fluffy cat walked down the long black road in the morning.\n\n"
+                               "To use the example prompt as your prompt, type 0 and hit enter when you are asked to input your prompt. ",
         "keywords": ['the'],
         "max_keyword_count": -1, # this represents unlimited occurrences of "the" are allowed.
         "auto_generate_prompt2": False,
@@ -47,6 +74,15 @@ DEMO_CONFIGS = {
     "prep_phrase_attach": {
         "name": "Demo 4",
         "description": "In this demo, we will focus on attention heads that perform prepositional phrase attachment.",
+        "description-details": "We will ask you to input two prompts of your own. Further guidelines are below: \n"
+                               "1. Make sure to include in each prompt exactly one occurrence of the following prepositions: in, with, for \n"
+                               "2. Please keep your prompts relatively short and simple for best visualization. \n"
+                               "3. Your prompts can include a question if you would like. \n"
+                               "4. Your two prompts should be identical except for one word. This change should demonstrate a change in prepositional \n"
+                               "   phrase attachment between the two sentences. \n"
+                               "Example prompt 1: They discussed the plan for hours. What was the plan for?\n"
+                               "Example prompt 2: They discussed the plan for dinner. What was the plan for?\n\n"
+                               "To use the example prompt as your prompt, type 0 and hit enter when you are asked to input your prompt. ",
         "keywords": ["in", "with", "for"],
         "max_keyword_count": 1,
         "auto_generate_prompt2": False,

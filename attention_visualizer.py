@@ -53,6 +53,9 @@ class AttentionVisualizer:
 
         # Process inputs
         self._process_inputs()
+
+        # Safety checker for textbox inputting
+        self.safe_tamper_flag = False
         
         # UI elements
         self.range_slider = None
@@ -336,7 +339,7 @@ class AttentionVisualizer:
 
     def _submit_layeridx(self, text):
         """ Handle when user inputs a new layer index """
-        if len(self.interesting_attns) != 0:
+        if not self.safe_tamper_flag and len(self.interesting_attns) != 0:
             print("Error: do not directly change the attention head field and layer field while in a demo. ")
             print("If you would like to explore the heads on your own, please run attention_visualizer.py." 
                   "Check usages by running python attention_visualizer.py")
@@ -349,10 +352,11 @@ class AttentionVisualizer:
         self.cur_layer_idx = int(text)
         self._plot_attention_head(self.cur_head_idx, self.cur_layer_idx)
         self.range_slider.reset()
+        self.safe_tamper_flag = False
 
     def _submit_headidx(self, text):
         """ Handle when user inputs a new head index """
-        if len(self.interesting_attns) != 0:
+        if not self.safe_tamper_flag and len(self.interesting_attns) != 0:
             print("Error: do not directly change the attention head field and layer field while in a demo. ")
             print("If you would like to explore the heads on your own, please run attention_visualizer.py.\n" 
                   "Check usages by running python attention_visualizer.py")
@@ -365,6 +369,7 @@ class AttentionVisualizer:
         self.cur_head_idx = int(text)
         self._plot_attention_head(self.cur_head_idx, self.cur_layer_idx)
         self.range_slider.reset()
+        self.safe_tamper_flag = False
 
     def _init_text_boxes(self):
         self.layer_textbox_ax = self.fig.add_axes([0.45, 0.945, 0.05, 0.05])
@@ -416,33 +421,58 @@ class AttentionVisualizer:
         self.hovered_lines.clear()
         
     def _on_hover(self, event):
-        """Handle mouse hover events."""
-        if event.inaxes not in self.axs.flatten():
+        """Handle mouse hover events over the matrices and line visualizations"""
+        if event.inaxes is None:
+            # print(f"event.inaxes: {event.inaxes}")
+            for tooltip in self.tooltips.values():
+                if tooltip.get_visible():
+                    tooltip.set_visible(False)
+            self.fig.canvas.draw_idle()
             return
-            
-        ax = event.inaxes
-        if ax not in self.tooltips:
+
+        hovered_ax = event.inaxes
+        if hovered_ax not in self.axs:
             return
-            
-        # Find closest token
-        spacing = 1 / len(self.tokens1)
-        y_pos = event.ydata
-        token_idx = int((1 - y_pos) / spacing)
-        
-        if 0 <= token_idx < len(self.tokens1):
-            # Highlight lines
-            self._reset_lines()
-            for line in self.all_lines1:
-                if hasattr(line, '_y1') and abs(line._y1 - (1 - (token_idx + 0.6) * spacing)) < 0.01:
-                    line.set_alpha(0.8)
-                    self.hovered_lines.append(line)
-                    
-            # Show tooltip
-            tooltip = self.tooltips[ax]
-            tooltip.xy = (event.xdata, event.ydata)
-            tooltip.set_text(f'Token: {self.tokens1[token_idx]}')
+
+        x_pos = round(event.xdata)
+        y_pos = round(event.ydata)
+
+        attentions = None
+        tokens_x = None
+        tokens_y = None
+        if hovered_ax == self.axs[0, 0]:
+            attentions = self.cur_layer_attentions[0, self.cur_head_idx, :, :].numpy()
+            tokens_x = self.tokens1
+            tokens_y = self.tokens1
+        elif hovered_ax == self.axs[0, 1]:
+            attentions = self.cur_layer_attentions[1, self.cur_head_idx, :, :].numpy()
+            tokens_x = self.tokens2
+            tokens_y = self.tokens2
+        elif hovered_ax == self.axs[0, 2]:
+            attentions = (self.cur_layer_attentions[0, self.cur_head_idx, :, :].numpy()
+                          - self.cur_layer_attentions[1, self.cur_head_idx, :, :].numpy())
+            tokens_x = self.tokens3
+            tokens_y = self.tokens3
+        else:
+            # self._click_linevisualizations(event)
+            return
+
+        tooltip = self.tooltips[hovered_ax]
+
+        if 0 <= x_pos < attentions.shape[1] and 0 <= y_pos < attentions.shape[0]:  # shape[0] is num rows, shape[1] is num cols
+            cur_attention = attentions[y_pos, x_pos]
+            tooltip.xy = (x_pos, y_pos)
+            tooltip.set_text(f"input: {tokens_y[y_pos]}\noutput: {tokens_x[x_pos]}\nactivation: {cur_attention:.3f}")
             tooltip.set_visible(True)
             self.fig.canvas.draw_idle()
+        else:
+            tooltip.set_visible(False)
+
+        for ax, other_tooltip in self.tooltips.items():
+            if ax != hovered_ax and other_tooltip.get_visible():
+                other_tooltip.set_visible(False)
+
+        self.fig.canvas.draw_idle()
             
     def _on_unhover(self, event):
         """Handle mouse unhover events."""
@@ -464,8 +494,6 @@ class AttentionVisualizer:
                     self.cur_layer_idx += 1
                 else:
                     self.cur_head_idx += 1
-                self.layer_textbox.set_val(str(self.cur_layer_idx))
-                self.head_textbox.set_val(str(self.cur_head_idx))
             elif event.key == 'left' or event.key == 'down':
                 if self.cur_layer_idx == 0 and self.cur_head_idx == 0:
                     self.cur_layer_idx = self.total_num_layers - 1
@@ -475,11 +503,13 @@ class AttentionVisualizer:
                     self.cur_layer_idx -= 1
                 else:
                     self.cur_head_idx -= 1
-                self.layer_textbox.set_val(str(self.cur_layer_idx))
-                self.head_textbox.set_val(str(self.cur_head_idx))
             elif event.key == 'q':
                 plt.close(self.fig)
                 return
+            self.safe_tamper_flag = True
+            self.layer_textbox.set_val(str(self.cur_layer_idx))
+            self.safe_tamper_flag = True
+            self.head_textbox.set_val(str(self.cur_head_idx))
         else:
             # we are currently in another demo, set the next attn head to the next in the list
             # of interesting attentions
@@ -495,7 +525,9 @@ class AttentionVisualizer:
                 plt.close(self.fig)
                 return
             self.cur_layer_idx, self.cur_head_idx = self.interesting_attns[self.cur_overall_idx]
+            self.safe_tamper_flag = True
             self.layer_textbox.set_val(str(self.cur_layer_idx))
+            self.safe_tamper_flag = True
             self.head_textbox.set_val(str(self.cur_head_idx))
         
     def visualize(self):

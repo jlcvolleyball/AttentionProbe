@@ -33,6 +33,7 @@ class BaseDemo:
         print(f"Hello! Welcome to {self.config['name']}. In this demonstration, we will ask you to input two of your own prompts.")
         print("We will run your sentences on Google's FLAN-T5 Large model, and will show you interesting attention heads. \n\n")
         print(self.config['description'])
+        print(self.config['description-details'])
         
     def transition_description(self):
         """Display the transition message."""
@@ -48,7 +49,7 @@ class BaseDemo:
         Returns:
             Valid user prompt
         """
-        print(f"Please input your prompt below. \nREQUIREMENTS: {self.config['validation_message']}")
+        print(f"Please input your prompt below.")
 
         while True:
             prompt = input(f"My prompt {prompt_number}: ")
