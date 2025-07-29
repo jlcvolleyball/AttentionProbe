@@ -309,7 +309,7 @@ class AttentionVisualizer:
         ax1.set_yticks(np.arange(len(self.tokens1)))
         ax1.set_xticklabels(self.tokens1, rotation=90)
         ax1.set_yticklabels(self.tokens1)
-        self.im1 = ax1.imshow(attn1, zorder=0)
+        self.im1 = ax1.imshow(attn1)
         self._text_colorchange(ax1)
         self.cb1 = self.fig.colorbar(self.im1, ax=ax1, shrink=0.8, pad=0.1)
         
@@ -320,7 +320,7 @@ class AttentionVisualizer:
         ax2.set_yticks(np.arange(len(self.tokens2)))
         ax2.set_xticklabels(self.tokens2, rotation=90)
         ax2.set_yticklabels(self.tokens2)
-        self.im2 = ax2.imshow(attn2, zorder=0)
+        self.im2 = ax2.imshow(attn2)
         self._text_colorchange(ax2)
         self.cb2 = self.fig.colorbar(self.im2, ax=ax2, shrink=0.8, pad=0.1)
         
@@ -331,7 +331,7 @@ class AttentionVisualizer:
         ax3.set_yticks(np.arange(len(self.tokens3)))
         ax3.set_xticklabels(self.tokens3, rotation=90)
         ax3.set_yticklabels(self.tokens3)
-        self.im_diff = ax3.imshow(diff, zorder=0)
+        self.im_diff = ax3.imshow(diff)
         self._text_colorchange(ax3)
         self.cb3 = self.fig.colorbar(self.im_diff, ax=ax3, shrink=0.8, pad=0.1)
         
