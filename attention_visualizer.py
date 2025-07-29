@@ -439,9 +439,95 @@ class AttentionVisualizer:
         
     def _reset_lines(self):
         """Reset line highlighting."""
+        # for line in self.hovered_lines:
+        #     line.set_alpha(0.3)
+        # self.hovered_lines.clear()
+        for line in self.all_lines1:
+            line.set_visible(True)
+        for line in self.all_lines2:
+            line.set_visible(True)
+        for line in self.all_lines3:
+            line.set_visible(True)
         for line in self.hovered_lines:
-            line.set_alpha(0.3)
+            line.remove()
         self.hovered_lines.clear()
+        self.fig.canvas.draw_idle()
+
+    def _click_line_visualizations(self, event):
+        hovered_ax = event.inaxes
+        if hovered_ax not in self.axs:
+            self._reset_lines()
+            return
+        # check if the hovered axes are correct, handle accordingly
+        if hovered_ax == self.axs[1, 0]:
+            attentions = self.cur_layer_attentions[0, self.cur_head_idx, :, :].numpy()
+            tokens = self.tokens1
+        elif hovered_ax == self.axs[1, 1]:
+            attentions = self.cur_layer_attentions[1, self.cur_head_idx, :, :].numpy()
+            tokens = self.tokens2
+        elif hovered_ax == self.axs[1, 2]:
+            attentions = (self.cur_layer_attentions[0, self.cur_head_idx, :, :].numpy()
+                          - self.cur_layer_attentions[1, self.cur_head_idx, :,:].numpy())
+            tokens = self.tokens3
+        else:
+            self._reset_lines()
+            return
+
+        token_bounds = self._compute_tokenbounds(tokens, spacing=1 / len(tokens))
+        x, y = event.x, event.y
+        inv = hovered_ax.transAxes.inverted()
+        x_axes, y_axes = inv.transform((x, y))
+
+        hovered_token = None
+        for i, (ymin, ymax) in enumerate(token_bounds):
+            if ymin <= y_axes <= ymax:
+                hovered_token = i
+                break
+
+        if hovered_token is None: return
+
+        if hovered_ax == self.axs[1, 0]:
+            for line in self.all_lines1:
+                line.set_visible(False)
+        elif hovered_ax == self.axs[1, 1]:
+            for line in self.all_lines2:
+                line.set_visible(False)
+        elif hovered_ax == self.axs[1, 2]:
+            for line in self.all_lines3:
+                line.set_visible(False)
+
+        if self.hovered_lines:
+            for line in self.hovered_lines:
+                line.remove()
+            self.hovered_lines.clear()
+
+        if x_axes < 0.5:
+            for j in range(len(tokens)):
+                if abs(attentions[hovered_token, j]) > 0.01:
+                    if hovered_ax == self.axs[1, 0]:
+                        new_line = self._draw_line_prompts(hovered_ax, hovered_token, j, attentions[hovered_token, j],
+                                                     spacing=1 / len(tokens), color="blue")
+                    elif hovered_ax == self.axs[1, 1]:
+                        new_line = self._draw_line_prompts(hovered_ax, hovered_token, j, attentions[hovered_token, j],
+                                                     spacing=1 / len(tokens), color="blue")
+                    if hovered_ax == self.axs[1, 2]:
+                        new_line = self._draw_line_diff(hovered_ax, hovered_token, j, attentions[hovered_token, j],
+                                                  spacing=1 / len(tokens))
+                    self.hovered_lines.append(new_line)
+        else:
+            for i in range(len(tokens)):
+                if abs(attentions[i, hovered_token]) > 0.01:
+                    if hovered_ax == self.axs[1, 0]:
+                        new_line = self._draw_line_prompts(hovered_ax, i, hovered_token, attentions[i, hovered_token],
+                                                     spacing=1 / len(tokens), color="blue")
+                    elif hovered_ax == self.axs[1, 1]:
+                        new_line = self._draw_line_prompts(hovered_ax, i, hovered_token, attentions[i, hovered_token],
+                                                     spacing=1 / len(tokens), color="blue")
+                    if hovered_ax == self.axs[1, 2]:
+                        new_line = self._draw_line_diff(hovered_ax, i, hovered_token, attentions[i, hovered_token],
+                                                  spacing=1 / len(tokens))
+                    self.hovered_lines.append(new_line)
+        self.fig.canvas.draw_idle()
         
     def _on_hover(self, event):
         """Handle mouse hover events over the matrices and line visualizations"""
@@ -466,7 +552,6 @@ class AttentionVisualizer:
         attentions = None
         tokens_x = None
         tokens_y = None
-        print(self.axs)
         if hovered_ax == self.axs[0, 0]:
             attentions = self.cur_layer_attentions[0, self.cur_head_idx, :, :].numpy()
             tokens_x = self.tokens1
@@ -481,18 +566,16 @@ class AttentionVisualizer:
             tokens_x = self.tokens3
             tokens_y = self.tokens3
         else:
-            # self._click_linevisualizations(event)
+            self._click_line_visualizations(event)
             return
 
         tooltip = self.tooltips[hovered_ax]
 
         if 0 <= x_pos < attentions.shape[1] and 0 <= y_pos < attentions.shape[0]:  # shape[0] is num rows, shape[1] is num cols
-            print("here!")
             cur_attention = attentions[y_pos, x_pos]
             tooltip.xy = (x_pos, y_pos)
             tooltip.set_text(f"input: {tokens_y[y_pos]}\noutput: {tokens_x[x_pos]}\nactivation: {cur_attention:.3f}")
             tooltip.set_visible(True)
-            print(tooltip)
             self.fig.canvas.draw_idle()
         else:
             tooltip.set_visible(False)
