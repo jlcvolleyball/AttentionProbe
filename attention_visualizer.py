@@ -51,6 +51,9 @@ class AttentionVisualizer:
         self.layer_textbox = None
         self.head_textbox = None
 
+        # Labels for interesting attention heads (only fully init-ed for demos, NOT base)
+        self.attention_head_count_label_ax = None
+
         # Process inputs
         self._process_inputs()
 
@@ -153,7 +156,7 @@ class AttentionVisualizer:
         """Initialize the range slider."""
         range_slider_ax = self.fig.add_axes([0.1, 0.03, 0.2, 0.03])
         self.range_slider = Slider(
-            range_slider_ax, 
+            range_slider_ax,
             'Adjust Range', 
             UI_CONFIG['slider_range'][0], 
             UI_CONFIG['slider_range'][1], 
@@ -382,6 +385,16 @@ class AttentionVisualizer:
         self.layer_textbox.text_disp.set_fontsize(16)
         self.head_textbox.label.set_fontsize(16)
         self.head_textbox.text_disp.set_fontsize(16)
+
+    def _init_attn_head_count_label(self):
+        self.attention_head_count_label_ax = self.fig.add_axes([0.7, 0.945, 0.05, 0.05])
+        self.attention_head_count_label_ax.axis("off")
+
+    def _update_attn_head_count(self):
+        self.attention_head_count_label_ax.cla()
+        self.attention_head_count_label_ax.axis("off")
+        label_text = f"Attention Head {self.cur_overall_idx} of {len(self.interesting_attns)}"
+        self.attention_head_count_label_ax.text(0.0, 0.5, label_text, fontsize=12, va="center", ha="left")
         
     def _plot_attention_head(self, head_idx, layer_idx):
         """Plot attention for a specific head."""
@@ -393,6 +406,10 @@ class AttentionVisualizer:
         if self.cb1: self.cb1.remove()
         if self.cb2: self.cb2.remove()
         if self.cb3: self.cb3.remove()
+
+        # initialize attention head count if we're in a demo
+        if len(self.interesting_attns) > 0 and self.attention_head_count_label_ax is None:
+            self._init_attn_head_count_label()
 
         # Initialize the textboxes
         if not self.head_textbox and not self.layer_textbox:
@@ -411,6 +428,10 @@ class AttentionVisualizer:
         # Reinitialize visualizations
         self._init_matrix_visualizations(self.axs[0, 0], self.axs[0, 1], self.axs[0, 2])
         self._init_line_visualizations(self.axs[1, 0], self.axs[1, 1], self.axs[1, 2])
+
+        # Update the attention head count if we're in a demo
+        if len(self.interesting_attns) > 0:
+            self._update_attn_head_count()
         
         self.fig.canvas.draw()
         
@@ -504,6 +525,7 @@ class AttentionVisualizer:
                 else:
                     self.cur_head_idx -= 1
             elif event.key == 'q':
+                print("Exited from the demonstration.")
                 plt.close(self.fig)
                 return
             self.safe_tamper_flag = True
@@ -522,6 +544,7 @@ class AttentionVisualizer:
                 if self.cur_overall_idx < 0:
                     self.cur_overall_idx = len(self.interesting_attns) - 1
             elif event.key == 'q':
+                print("Exited from the demonstration.")
                 plt.close(self.fig)
                 return
             self.cur_layer_idx, self.cur_head_idx = self.interesting_attns[self.cur_overall_idx]
