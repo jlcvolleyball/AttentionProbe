@@ -4,7 +4,7 @@ Base class for attention probe demonstrations.
 
 import subprocess
 from typing import List, Tuple
-from config import DEMO_CONFIGS, UI_CONFIG, VALIDATION_RULES
+from config import DEMO_CONFIGS, UI_CONFIG, VALIDATION_RULES, COMMON_MESSAGES
 from utils import ModelManager, validate_sentence, generate_contrast_prompt
 from attention_visualizer import AttentionVisualizer
 
@@ -24,6 +24,7 @@ class BaseDemo:
         self.demo_type = demo_type
             
         self.config = DEMO_CONFIGS[demo_type]
+        self.common_messages = COMMON_MESSAGES
         self.model_manager = ModelManager("google/flan-t5-large")
         self.prompt1 = ""
         self.prompt2 = ""
@@ -34,6 +35,7 @@ class BaseDemo:
         print("We will run your sentences on Google's FLAN-T5 Large model, and will show you interesting attention heads. \n\n")
         print(self.config['description'])
         print(self.config['description-details'])
+        print(self.common_messages['navigation_msg'])
         
     def transition_description(self):
         """Display the transition message."""
