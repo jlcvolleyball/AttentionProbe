@@ -393,7 +393,7 @@ class AttentionVisualizer:
     def _update_attn_head_count(self):
         self.attention_head_count_label_ax.cla()
         self.attention_head_count_label_ax.axis("off")
-        label_text = f"Attention Head {self.cur_overall_idx} of {len(self.interesting_attns)}"
+        label_text = f"Attention Head {self.cur_overall_idx + 1} of {len(self.interesting_attns)}"
         self.attention_head_count_label_ax.text(0.0, 0.5, label_text, fontsize=12, va="center", ha="left")
         
     def _plot_attention_head(self, head_idx, layer_idx):
