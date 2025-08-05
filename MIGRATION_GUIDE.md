@@ -122,8 +122,9 @@ pip install -r requirements.txt
 If you have code that imports the original modules:
 
 **Before:**
+
 ```python
-from demo1 import find_difference, run_model
+from archive.demo1 import find_difference, run_model
 ```
 
 **After:**
@@ -207,8 +208,9 @@ python attention_visualizer.py "The man showed his jacket" "The man showed her j
 If you import functions from the original files, you'll need to update imports:
 
 **Before:**
+
 ```python
-from demo1 import find_difference
+from archive.demo1 import find_difference
 ```
 
 **After:**
