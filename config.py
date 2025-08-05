@@ -86,6 +86,12 @@ DEMO_CONFIGS = {
     }
 }
 
+# Embedding Visualization Configuration
+EMBED_CONFIGS = {
+    "introduction": "Welcome to the Embedding Visualization Demo! In this demo, we provide different modes of visualization"
+                    " for examining how embeddings change through the layers of the FLAN-T5-large model."
+}
+
 # UI Configuration
 UI_CONFIG = {
     "max_generation_length": 20,

@@ -5,14 +5,19 @@ import matplotlib.pyplot as plt
 import sys
 import numpy as np
 from matplotlib.widgets import TextBox
+from utils import ModelManager
+from config import EMBED_CONFIGS
 
-# model setup
-tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-large")
-model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-large")
-config = T5Config.from_pretrained("google/flan-t5-large")
-
-# global variables
+# mode: can be 0, 1, or 2, determines the type of visualization
 mode = None
+# tokens1: the input tokens
+tokens1 = None
+# encoder_hidden_states: contains the hidden states after running model.generate
+encoder_hidden_states = None
+# seq_len: length of input sequence
+seq_len = 0
+# num_layers: how many hidden states there are
+num_layers = 0
 
 # for embedding matrix visualizations
 fig, axs = None, None
@@ -27,26 +32,9 @@ min_embedding2_label_ax, min_embedding2_label, max_embedding2_label_ax, max_embe
 max_embedding1, max_embedding2 = -float("inf"), -float("inf")
 min_embedding1, min_embedding2 = float("inf"), float("inf")
 
-my_input = "The jacket"
-inputs = tokenizer(my_input, return_tensors="pt")
-inputs_ids = inputs.input_ids
+# for cosine sim matrix visualization
+ax = None
 
-outputs = model.generate(
-    input_ids=inputs_ids,
-    attention_mask=inputs.attention_mask,
-    output_hidden_states=True,
-    return_dict_in_generate=True
-)
-
-tokens1 = tokenizer.convert_ids_to_tokens(inputs_ids[0])
-print(f"These are the input IDS: {inputs_ids[0]}")
-print(f"These are the tokens: {tokens1}")
-
-encoder_hidden_states = outputs.encoder_hidden_states
-decoder_hidden_states = outputs.decoder_hidden_states
-
-seq_len = encoder_hidden_states[0].shape[1]
-num_layers = len(encoder_hidden_states)
 def is_float(s):
     try:
         float(s)
@@ -65,22 +53,22 @@ def plot_embedding(plot_idx, layer_idx):
 def submit_emb2_idx(text):
     if not text.isdigit() or int(text) > 23:
         print("Error: You entered an invalid layer number. Program exit")
-        return
+        exit(1)
     cur_layer_idx = int(text)
     plot_embedding(1, cur_layer_idx)
 
 def submit_emb1_idx(text):
     if not text.isdigit() or int(text) > 23:
         print("Error: You entered an invalid layer number. Program exit")
-        return
+        exit(1)
     cur_layer_idx = int(text)
     plot_embedding(0, cur_layer_idx)
 
-def submit_token_num(text):
+def submit_token_num_matrix(text):
     global token_idx
     if not text.isdigit() or int(text) > seq_len-1:
         print("Error: You entered an invalid token number. Program exit")
-        return
+        exit(1)
     cur_token_idx = int(text)
     token_idx = cur_token_idx
     matrix_embedding_visualizations()
@@ -89,7 +77,7 @@ def submit_emb1_min(text):
     global min_embedding1, im1
     if not is_float(text):
         print("Error: You entered an invalid range for min. Program exit")
-        return
+        exit(1)
     min_embedding1 = round(float(text), 2)
     im1.set_clim(min_embedding1, max_embedding1)
 
@@ -97,7 +85,7 @@ def submit_emb1_max(text):
     global max_embedding1, im1
     if not is_float(text):
         print("Error: You entered an invalid range for max. Program exit")
-        return
+        exit(1)
     max_embedding1 = round(float(text), 2)
     im1.set_clim(min_embedding1, max_embedding1)
 
@@ -105,7 +93,7 @@ def submit_emb2_min(text):
     global min_embedding2, im2
     if not is_float(text):
         print("Error: You entered an invalid range for min. Program exit")
-        return
+        exit(1)
     min_embedding2 = round(float(text), 2)
     im2.set_clim(min_embedding2, max_embedding2)
 
@@ -113,7 +101,7 @@ def submit_emb2_max(text):
     global max_embedding2, im2
     if not is_float(text):
         print("Error: You entered an invalid range for max. Program exit")
-        return
+        exit(1)
     max_embedding2 = round(float(text), 2)
     im2.set_clim(min_embedding2, max_embedding2)
 
@@ -133,9 +121,7 @@ def matrix_embedding_visualizations():
     # default token index for now:
     if fig is None and axs is None:
         fig, axs = plt.subplots(1, 2, figsize=(50, 8))
-        axs[0].plot([1, 2, 3], [4, 5, 6])
         axs[0].set_title("Embedding 1 Plot")
-        axs[1].plot([1, 2, 3], [6, 5, 4])
         axs[1].set_title("Embedding 2 Plot")
 
         embedding1_layer_ax = fig.add_axes([0.30, 0.87, 0.05, 0.05])
@@ -153,7 +139,7 @@ def matrix_embedding_visualizations():
         token_num_label = TextBox(token_num_label_ax, label='Token Number ', initial="0")
         token_num_label.label.set_fontsize(16)
         token_num_label.text_disp.set_fontsize(16)
-        token_num_label.on_submit(submit_token_num)
+        token_num_label.on_submit(submit_token_num_matrix)
 
         min_embedding1_label_ax = fig.add_axes([0.20, 0.15, 0.05, 0.05])
         min_embedding1_label = TextBox(min_embedding1_label_ax, label='Min ', initial="0")
@@ -204,9 +190,9 @@ def cosine_sim_lineplot():
             cosine_similarities.append(sim)
         all_sims.append(cosine_similarities)
 
-    print(outputs[0][1:-1])
-    output_text = tokenizer.decode(outputs[0][0])
-    print(f"output: {output_text}")
+    # print(outputs[0][1:-1])
+    # output_text = tokenizer.decode(outputs[0][0])
+    # print(f"output: {output_text}")
 
     for idx, cos_sim in enumerate(all_sims):
         plt.plot(cos_sim, marker='o', label=tokens1[idx])
@@ -215,36 +201,111 @@ def cosine_sim_lineplot():
     plt.legend()
     plt.show()
 
+def submit_token_num_cos(text):
+    global token_idx
+    if not text.isdigit() or int(text) > seq_len-1:
+        print("Error: You entered an invalid token number. Program exit")
+        exit(1)
+    cur_token_idx = int(text)
+    token_idx = cur_token_idx
+    matrix_cosine_sim_visualization()
+
 def matrix_cosine_sim_visualization():
+    global cb1, fig, ax, token_num_label_ax, token_num_label
+    global token_idx
     all_sims = []
-    cur_token = 0
+
+    if cb1 is not None: cb1.remove()
+
+    if fig is None:
+        fig, ax = plt.subplots(1, 1, figsize=(50, 8))
+
+        token_num_label_ax = fig.add_axes([0.55, 0.03, 0.05, 0.05])
+        token_num_label = TextBox(token_num_label_ax, label='Token Number ', initial="0")
+        token_num_label.label.set_fontsize(16)
+        token_num_label.text_disp.set_fontsize(16)
+        token_num_label.on_submit(submit_token_num_cos)
+
+    # updating title
+    fig.suptitle(f"Current Token: {tokens1[token_idx]}", fontsize=16)
+
     for layer_i in encoder_hidden_states:
-        layer_i_embedding = layer_i[0, cur_token, :]
+        layer_i_embedding = layer_i[0, token_idx, :]
         layer_ij_sims = []
         for layer_j in encoder_hidden_states:
-            layer_j_embedding = layer_j[0, cur_token, :]
+            layer_j_embedding = layer_j[0, token_idx, :]
             sim = F.cosine_similarity(layer_i_embedding, layer_j_embedding, dim=0).item()
             layer_ij_sims.append(sim)
         all_sims.append(layer_ij_sims)
     all_sims_np = np.array(all_sims)
-    im = plt.imshow(all_sims_np)
-    plt.colorbar()
+    im = ax.imshow(all_sims_np)
+    cb1 = fig.colorbar(im, ax=ax, shrink=0.7, pad=0.1)
+
     plt.show()
+
+def print_usage():
+    print("Usage: python extract_embeddings.py <input prompt> -mode <mode number>")
+    print(
+        "<mode_number>: supports '0', '1', and '2'")
+    print(
+        "      0: Cosine similarity between embedding at Layer 0 and every other layer is plotted via line graph.")
+    print(
+        "      1: Embeddings are represented as 32x32 matrices, can access embeddings at every layer with text boxes. \n"
+        "         Intended for exploration/comparison.")
+    print("      2: Cosine similarity between every layer and every other layer is plotted via a 24x24 matrix")
+    print("Example Usage: \n"
+          "python extract_embeddings.py 'The jacket' -mode 1"
+          "\n\n")
 
 def main():
     global mode
-    if len(sys.argv) == 3:
+    global tokens1, encoder_hidden_states, seq_len, num_layers
+    if len(sys.argv) < 3:
+        print_usage()
+        exit(1)
+    elif len(sys.argv) == 3:
         flag = sys.argv[1]
         if flag == "-mode":
             mode = int(sys.argv[2])
+        else:
+            print_usage()
+            exit(1)
+    if mode < 0 or mode > 2:
+        print_usage()
+        exit(1)
+
+    model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-large")
+    tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-large")
+    user_input = input("Please enter your prompt here: ")
+    inputs = tokenizer(user_input, return_tensors="pt")
+    inputs_ids = inputs.input_ids
+
+    outputs = model.generate(
+        input_ids=inputs_ids,
+        attention_mask=inputs.attention_mask,
+        output_hidden_states=True,
+        return_dict_in_generate=True,
+        max_length=20
+    )
+
+    print(EMBED_CONFIGS['introduction'])
+
+    tokens1 = tokenizer.convert_ids_to_tokens(inputs_ids[0])
+    print(f"Input IDS: {inputs_ids[0]}")
+    print(f"Tokens: {tokens1}")
+    print(f"Model output: {tokenizer.decode(outputs[0][0])}")
+
+    encoder_hidden_states = outputs.encoder_hidden_states
+
+    seq_len = encoder_hidden_states[0].shape[1]
+    num_layers = len(encoder_hidden_states)
+
     if mode == 0:
         cosine_sim_lineplot()
-    if mode == 1:
+    elif mode == 1:
         matrix_embedding_visualizations()
-    if mode == 2:
+    elif mode == 2:
         matrix_cosine_sim_visualization()
 
 if __name__ == '__main__':
     main()
-
-# the embeddingsare 1024, so just plot them as 32x32 grid like you do for attention heads

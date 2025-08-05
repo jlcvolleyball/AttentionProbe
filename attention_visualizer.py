@@ -680,11 +680,11 @@ def main():
     if len(sys.argv) < 3:
         print("Usage: python attention_visualizer.py <prompt1> <prompt2> <demo_type>")
         print("<demo_type>: supports 'base', 'pronoun_resolution', 'number_agreement', 'noun_phrases', and 'prep_phrase_attach'")
-        print("            base: All attention heads in all layers are shown. Intended for exploration purposes")
-        print("            pronoun_resolution: Attention heads of interest exhibiting pronoun resolution are shown")
-        print("            number_agreement: Attention heads of interest exhibiting number agreement are shown")
-        print("            noun_phrases: Attention heads of interest exhibiting noun phrase identification are shown")
-        print("            prep_phrase_attachment: Attention heads of interest exhibiting prepositional phrase attachment are shown")
+        print("      base: All attention heads in all layers are shown. Intended for exploration purposes")
+        print("      pronoun_resolution: Attention heads of interest exhibiting pronoun resolution are shown")
+        print("      number_agreement: Attention heads of interest exhibiting number agreement are shown")
+        print("      noun_phrases: Attention heads of interest exhibiting noun phrase identification are shown")
+        print("      prep_phrase_attachment: Attention heads of interest exhibiting prepositional phrase attachment are shown")
         print("Note that for the latter four demo_type options, it would make the most sense to input prompts that demonstrate"
               "the option specified.\n")
         print("Example Usage: \n"
