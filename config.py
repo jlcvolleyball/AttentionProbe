@@ -88,8 +88,21 @@ DEMO_CONFIGS = {
 
 # Embedding Visualization Configuration
 EMBED_CONFIGS = {
-    "introduction": "Welcome to the Embedding Visualization Demo! In this demo, we provide different modes of visualization"
-                    " for examining how embeddings change through the layers of the FLAN-T5-large model."
+    "introduction": "Welcome to the Embedding Visualization Demo! In this demo, we provide different modes of \n visualization"
+                    " for examining how embeddings change through the layers of the FLAN-T5-large model.",
+    "description-details-0": "You are currently in mode 0: plots cosine similarity between embedding at Layer 0 and the"
+                             " embedding at every other layer via a line graph. In this mode, we will ask for an input below. Please"
+                             " keep in mind that the visualization works best with shorter inputs.",
+    "description-details-1": "You are currently in mode 1: represents embeddings as 32x32 matrices. This is an exploratory mode, "
+                              "where you are given two 32x32 embedding matrices. Navigation instructions below: \n"
+                             "1. You are able to navigate to embeddings at different layers using the text boxes above each matrix \n"
+                             "2. You can change the min and max values of the colorbar display using the two text boxes below each matrix, labeled min and max \n"
+                             "3. You can navigate to different tokens from your input sequence using the text box at the bottom of the screen. Note the tokenized \n"
+                             "   sequence of your input will be printed after you give your input for your reference.",
+    "description-details-2": "You are currently in mode 2: a 24x24 matrix that plots cosine similarity between every layer and every other layer. "
+                             "Navigation instructions below: \n"
+                             "1. You can navigate to different tokens from your input sequence using the text box at the bottom of the screen. Note the tokenized \n"
+                             "   sequence of your input will be printed after you give your input for your reference."
 }
 
 # UI Configuration

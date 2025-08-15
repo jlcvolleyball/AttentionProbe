@@ -265,12 +265,22 @@ def main():
                 exit(1)
             else:
                 mode = int(sys.argv[2])
+        else:
+            print_usage()
+            exit(1)
     if mode < 0 or mode > 2:
         print_usage()
         exit(1)
 
     model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-large")
     tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-large")
+
+    print(EMBED_CONFIGS['introduction'])
+
+    print(EMBED_CONFIGS[f'description-details-{mode}'])
+    print('\n')
+
+
     user_input = input("Please enter your prompt here: ")
     inputs = tokenizer(user_input, return_tensors="pt")
     inputs_ids = inputs.input_ids
@@ -282,8 +292,6 @@ def main():
         return_dict_in_generate=True,
         max_length=20
     )
-
-    print(EMBED_CONFIGS['introduction'])
 
     tokens1 = tokenizer.convert_ids_to_tokens(inputs_ids[0])
     print(f"Input IDS: {inputs_ids[0]}")
