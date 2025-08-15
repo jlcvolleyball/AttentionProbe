@@ -5,6 +5,9 @@ was developed as part of Carnegie Mellon University's Summer Undergraduate Resea
 meaningful and interpretable attention heads. AttentionProbe has lately been extended to allow users to explore how embeddings change across layers in the 
 model.
 
+<img width="1483" height="784" alt="Screenshot 2025-08-14 at 8 55 40 PM" src="https://github.com/user-attachments/assets/5e724716-e0c9-46df-843f-7a5482f14bba" />
+
+
 ---
 
 ## Features
