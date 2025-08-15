@@ -6,6 +6,7 @@ import sys
 import numpy as np
 from matplotlib.widgets import TextBox
 from utils import ModelManager
+from utils import is_int, is_float
 from config import EMBED_CONFIGS
 
 # mode: can be 0, 1, or 2, determines the type of visualization
@@ -34,13 +35,6 @@ min_embedding1, min_embedding2 = float("inf"), float("inf")
 
 # for cosine sim matrix visualization
 ax = None
-
-def is_float(s):
-    try:
-        float(s)
-        return True
-    except ValueError:
-        return False
 
 def plot_embedding(plot_idx, layer_idx):
     global emb1_layer_idx, emb2_layer_idx
@@ -246,7 +240,7 @@ def matrix_cosine_sim_visualization():
 def print_usage():
     print("Usage: python extract_embeddings.py <input prompt> -mode <mode number>")
     print(
-        "<mode_number>: supports '0', '1', and '2'")
+        "<mode_number>: supports 0, 1, and 2")
     print(
         "      0: Cosine similarity between embedding at Layer 0 and every other layer is plotted via line graph.")
     print(
@@ -254,7 +248,7 @@ def print_usage():
         "         Intended for exploration/comparison.")
     print("      2: Cosine similarity between every layer and every other layer is plotted via a 24x24 matrix")
     print("Example Usage: \n"
-          "python extract_embeddings.py 'The jacket' -mode 1"
+          "python extract_embeddings.py -mode 1"
           "\n\n")
 
 def main():
@@ -266,10 +260,11 @@ def main():
     elif len(sys.argv) == 3:
         flag = sys.argv[1]
         if flag == "-mode":
-            mode = int(sys.argv[2])
-        else:
-            print_usage()
-            exit(1)
+            if not is_int(sys.argv[2]):
+                print_usage()
+                exit(1)
+            else:
+                mode = int(sys.argv[2])
     if mode < 0 or mode > 2:
         print_usage()
         exit(1)

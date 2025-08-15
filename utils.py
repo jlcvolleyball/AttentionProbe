@@ -60,6 +60,20 @@ def validate_sentence(sentence: str, required_keywords: List[str], max_count: in
         return True
     return total_count <= max_count
 
+def is_float(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
+def is_int(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
 
 def generate_contrast_prompt(original_prompt: str, keywords: List[str], auto_generate: bool) -> str:
     """
